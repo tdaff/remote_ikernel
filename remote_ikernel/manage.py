@@ -20,6 +20,9 @@ from IPython.kernel.kernelspec import find_kernel_specs, get_kernel_spec
 from IPython.kernel.kernelspec import install_kernel_spec
 from IPython.utils.tempdir import TemporaryDirectory
 
+# How we identify kernels that rik will manage
+RIK_PREFIX = 'rik_'
+
 
 def delete_kernel(kernel_name):
     """
@@ -44,8 +47,28 @@ def delete_kernel(kernel_name):
         pass
 
 
+def show_kernel(kernel_name):
+    """
+    Print the contents of the kernel.json to the terminal, plus some extra
+    information.
+
+    Parameters
+    ----------
+    kernel_name : str
+        The name of the kernel to show the information for.
+    """
+    # Load the raw json, since we store some unexpected data in there too
+    spec = get_kernel_spec(kernel_name)
+    with open(path.join(spec.resource_dir, 'kernel.json')) as kernel_file:
+        kernel_json = json.load(kernel_file)
+
+    # Manually format the json to put each key: value on a single line
+    print("Kernel found in :{0}".format(spec.resource_dir))
+    print("kernel_json = {0}".format(json.dumps(kernel_json)))
+
+
 def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
-               user=False):
+               system=False, workdir=None):
     """
     Add a kernel. Generates a kernel.json and installs it for the system or
     user.
@@ -75,12 +98,20 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
         kernel_name.append('{0}'.format(cpus))
         display_name.append('{0} CPUs'.format(cpus))
 
-    argv.extend(['--kernel_cmd', format(kernel_cmd)])
+    if workdir is not None:
+         argv.extend(['--workdir', '{0}'.format(workdir)])
 
+
+    # protect the {connection_file} part of the kernel command
+    kernel_cmd = kernel_cmd.replace('{connection_file}',
+                                    '{host_connection_file}')
+    argv.extend(['--kernel_cmd', kernel_cmd])
+
+    # remote_ikernel needs the connection file too
     argv.append('{connection_file}')
 
     # Prefix all kernels with 'remote_' for management.
-    kernel_name = 'remote_' + '-'.join(kernel_name)
+    kernel_name = RIK_PREFIX + '-'.join(kernel_name)
     kernel_json = {
         'display_name': " ".join(display_name),
         'argv': argv,
@@ -89,18 +120,22 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
     if language is not None:
         kernel_json['language'] = language
 
-    # Install as the current user, otherwise False attempts a system install
-    if user:
-        username = getpass.getuser()
-    else:
+    # Put the commandline in so that '--show' will show how to recreate
+    # the kernel
+    kernel_json['remote_ikernel_argv'] = sys.argv
+
+    # False attempts a system install, otherwise install as the current user
+    if system:
         username = False
+    else:
+        username = getpass.getuser()
 
     # kernel.json file installation
     with TemporaryDirectory() as temp_dir:
         os.chmod(temp_dir, 0o755)  # Starts off as 700, not user readable
 
-        with open(os.path.join(temp_dir, 'kernel.json'), 'w') as kernel_file:
-            json.dump(kernel_json, kernel_file, sort_keys=True)
+        with open(path.join(temp_dir, 'kernel.json'), 'w') as kernel_file:
+            json.dump(kernel_json, kernel_file, sort_keys=True, indent=2)
 
         install_kernel_spec(temp_dir, kernel_name, user=username, replace=True)
 
@@ -121,7 +156,7 @@ def manage():
 
     # Sort so they are always in the same order
     for kernel_name in sorted(find_kernel_specs()):
-        if kernel_name.startswith('remote_'):
+        if kernel_name.startswith(RIK_PREFIX):
             spec = get_kernel_spec(kernel_name)
             display = "  ['{kernel_name}']: {desc}".format(
                 kernel_name=kernel_name, desc=spec.display_name)
@@ -132,8 +167,12 @@ def manage():
     parser = argparse.ArgumentParser(
         prog='%prog manage', description="\n".join(description),
         formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('--show', '-s', help="Print the contents of the "
+                        "kernel.")
     parser.add_argument('--add', '-a', action="store_true", help="Add a new "
                         "kernel according to other commandline options.")
+    parser.add_argument('--delete', '-d', help="Remove the kernel and delete "
+                        "the associated kernel.json.")
     parser.add_argument('--kernel_cmd', '-k', help="Kernel command "
                         "to install.")
     parser.add_argument('--name', '-n', help="Name to identify the kernel,"
@@ -146,22 +185,36 @@ def manage():
                         "running on gridengine.")
     parser.add_argument('--interface', '-i', choices=['sge'], help="Specify "
                         "how the remote kernel is launched.")
-    parser.add_argument('--delete', '-d', help="Remove the kernel and delete "
-                        "the associated kernel.json.")
-    parser.add_argument('--user', help="Install the kernel only for the "
-                        "current user.", action='store_true')
+    parser.add_argument('--system', help="Install the kernel into the system "
+                        "directory so that it is available for all users. "
+                        "Might need admin privilidges.", action='store_true')
+    parser.add_argument('--workdir', help="Directory in which to start the "
+                        "kernel. If not specified it will use the current "
+                        "directory. This is important if the local and remote "
+                        "filesystems differ.")
 
+    # Temporarily remove 'manage' from the arguments
+    raw_args = sys.argv[:]
+    sys.argv.remove('manage')
     args = parser.parse_args()
+    sys.argv = raw_args
 
     if args.add:
         kernel_name = add_kernel(args.interface, args.name, args.kernel_cmd,
-                                 args.cpus, args.pe, args.language, args.user)
+                                 args.cpus, args.pe, args.language, args.system,
+                                 args.workdir)
         print("Installed kernel {0}.".format(kernel_name))
     elif args.delete:
         if args.delete in existing_kernels:
             delete_kernel(args.delete)
         else:
             print("Can't delete {0}".format(args.delete))
+            print("\n".join(description[2:]))
+    elif args.show:
+        if args.show in existing_kernels:
+            show_kernel(args.show)
+        else:
+            print("Kernel {0} doesn't exist".format(args.show))
             print("\n".join(description[2:]))
     else:
         parser.print_help()

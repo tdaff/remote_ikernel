@@ -1,4 +1,5 @@
 Remote IKernel
+--------------
 
 Launch IPython/Jupyter kernels on remote systems so that they can be
 used with local noteboooks.
@@ -17,11 +18,19 @@ Install with ``pip install remote_ikernel``.
     # Set up the kernels you'd like to use
     remote_ikernel manage
     # add a new kernel
-    remote_ikernel manage --add --kernel_cmd='ipython kernel' \
-                                --name="Python 2.7" \
-                                --interface=sge \
-                                --cpus=4 --pe=smp
+    remote_ikernel manage --add \
+        --kernel_cmd="ipython kernel -f {connection_file}" \
+        --name="Python 2.7" --cpus=2 --pe=smp --interface=sge
 
 The kernel spec will be installed so that the new kernel appears in
 the drop-down list in the notebook.
 
+Changes for v0.2
+================
+
+  * Changed prefix to 'rik_'.
+  * kernel_cmd now requires the {connection_file} argument.
+  * ``remote_ikernel manage --show`` command to show existing kernels.
+  * Specify the working directory on the remote machine with ``--workdir``.
+  * ``kernel-uuid.json`` is copied to the working director for systems where
+    there is no access to the frontend filesystem.

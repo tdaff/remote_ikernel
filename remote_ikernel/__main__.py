@@ -9,7 +9,6 @@ import sys
 
 if 'manage' in sys.argv:
     from remote_ikernel.manage import manage
-    sys.argv.remove('manage')
     manage()
 else:
     from remote_ikernel.kernel import start_remote_kernel

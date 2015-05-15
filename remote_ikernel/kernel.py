@@ -16,6 +16,9 @@ import pexpect
 
 from zmq.ssh.tunnel import ssh_tunnel
 
+# Where remote system has a different filesystem, a temporary file is needed
+# to hold the json.
+TEMP_KERNEL_NAME = './tmp_kernel.json'
 # ALl the ports that need to be forwarded
 PORT_NAMES = ['hb_port', 'shell_port', 'iopub_port', 'stdin_port',
               'control_port']
@@ -29,7 +32,7 @@ class RemoteIKernel(object):
     """
 
     def __init__(self, connection_info=None, interface='sge', cpus=1, pe='smp',
-                 kernel_cmd='ipython kernel', tunnel=True):
+                 kernel_cmd='ipython kernel', workdir=None, tunnel=True):
         """
         Initialise a kernel on a remote machine and start tunnels.
 
@@ -41,51 +44,78 @@ class RemoteIKernel(object):
         self.cpus = cpus
         self.pe = pe
         self.kernel_cmd = kernel_cmd
-        self.node = ''  # Name of node to be changed once connection is ready.
+        self.host = ''  # Name of node to be changed once connection is ready.
         self.connection = None  # will usually be a spawned pexpect
+        self.workdir = workdir
+        self.cwd = os.getcwd()  # Launch directory may be needed if no workdir
 
         if self.interface == 'sge':
             self.launch_sge()
         else:
             raise ValueError("Unknown interface {0}".format(interface))
 
-        if self.connection is not None and tunnel:
-            self.tunnel_connection()
+        # If we've established a connection, start the kernel!
+        if self.connection is not None:
+            self.start_kernel()
+            if tunnel:
+                self.tunnel_connection()
 
     def launch_sge(self):
         """
         Start a kernel through the gridengine qlogin command. The connection
         will use the object's connection_info and kernel_command.
         """
-        # We have to keep track of the directory where we are spawned
-        # since qlogin can't take thw cwd option.
-        cwd = os.getcwd()
         if self.cpus > 1:
             pe_string = "-pe {pe} {cpus}".format(pe=self.pe, cpus=self.cpus)
         else:
             pe_string = ''
         # To debug add logfile=sys.stdout
+        # Will wait in the queue for up to 10 mins
         qlogin = pexpect.spawn('qlogin -now n {0}'.format(pe_string),
                                timeout=600)
         # Hopefully this text is universal?
         qlogin.expect('Establishing builtin session to host (.*) ...')
 
         node = qlogin.match.groups()[0]
-        self.node = node
-
-        qlogin.sendline('cd {0}'.format(cwd))
-        qlogin.sendline('{kernel_cmd} --ip="*" '
-                        '--hb={ci[hb_port]} --shell={ci[shell_port]} '
-                        '--iopub={ci[iopub_port]} --stdin={ci[stdin_port]} '
-                        '--control={ci[control_port]} --Session.key={ci[key]}'
-                        ''.format(kernel_cmd=self.kernel_cmd,
-                                  ci=self.connection_info))
-
-        # Could check this for errors?
-        qlogin.expect('.*')
+        self.host = node
 
         # Child process is available to the class. Keeps it referenced
         self.connection = qlogin
+
+    def start_kernel(self):
+        """
+        Start the kernel on the remote machine.
+        """
+        conn = self.connection
+
+        # Use the specified working directory or try to change to the same
+        # directory on the remote machine.
+        if self.workdir:
+            conn.sendline('cd {0}'.format(self.workdir))
+        else:
+            conn.sendline('cd {0}'.format(self.cwd))
+
+        # Create a temporary file to store a copy of the connection information
+        # Delete the file if it already exists
+        conn.sendline('rm -f {0}'.format(TEMP_KERNEL_NAME))
+        file_contents = json.dumps(self.connection_info)
+        conn.sendline('echo \'{0}\' > {1}'.format(file_contents,
+                                                  TEMP_KERNEL_NAME))
+
+        # Init as a background process so we can delete the tempfile after
+        kernel_init = '{kernel_cmd}'.format(kernel_cmd=self.kernel_cmd)
+        kernel_init = kernel_init.format(host_connection_file=TEMP_KERNEL_NAME,
+                                         ci=self.connection_info)
+        conn.sendline(kernel_init)
+
+        # The kernel blocks further commands, so queue deletion of the
+        # transient file for once the process stops. Trying to do this
+        # whilst simultaneously starting the kernel ended up deleting
+        # the file before it was read.
+        conn.sendline('rm -f {0}'.format(TEMP_KERNEL_NAME))
+
+        # Could check this for errors?
+        conn.expect('.*')
 
     def tunnel_connection(self):
         """
@@ -96,11 +126,11 @@ class RemoteIKernel(object):
         # admin to turn StrictHostKeyChecking off in .ssh/ssh_config for this
         # to work seamlessly.
         pexpect.spawn('ssh -o StrictHostKeyChecking=no '
-                      '{node}'.format(node=self.node)).sendline('exit')
+                      '{host}'.format(host=self.host)).sendline('exit')
         # Use zmq's convenience tunnel setup
         for port_name in PORT_NAMES:
             port = self.connection_info[port_name]
-            ssh_tunnel(port, port, self.node, '*')
+            ssh_tunnel(port, port, self.host, '*')
 
     def keep_alive(self):
         """
@@ -124,15 +154,17 @@ def start_remote_kernel():
     """
     # These will not face a user since they are interpreting the command from
     # kernel the kernel.json
-    parser = argparse.ArgumentParser()
+    description = "This is the kernel launcher, did you mean '%prog manage'"
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument('connection_info')
     parser.add_argument('--interface', default='sge')
     parser.add_argument('--cpus', type=int, default=1)
     parser.add_argument('--pe', default='smp')
     parser.add_argument('--kernel_cmd', default='ipython kernel')
+    parser.add_argument('--workdir')
     args = parser.parse_args()
 
     kernel = RemoteIKernel(connection_info=args.connection_info,
                            interface=args.interface, cpus=args.cpus, pe=args.pe,
-                           kernel_cmd=args.kernel_cmd)
+                           kernel_cmd=args.kernel_cmd, workdir=args.workdir)
     kernel.keep_alive()
