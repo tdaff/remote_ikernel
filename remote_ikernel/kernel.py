@@ -16,9 +16,11 @@ import pexpect
 
 from zmq.ssh.tunnel import ssh_tunnel
 
+from remote_ikernel import RIK_PREFIX
+
 # Where remote system has a different filesystem, a temporary file is needed
 # to hold the json.
-TEMP_KERNEL_NAME = './tmp_kernel.json'
+TEMP_KERNEL_NAME = './{0}kernel.json'.format(RIK_PREFIX)
 # ALl the ports that need to be forwarded
 PORT_NAMES = ['hb_port', 'shell_port', 'iopub_port', 'stdin_port',
               'control_port']
@@ -32,7 +34,8 @@ class RemoteIKernel(object):
     """
 
     def __init__(self, connection_info=None, interface='sge', cpus=1, pe='smp',
-                 kernel_cmd='ipython kernel', workdir=None, tunnel=True):
+                 kernel_cmd='ipython kernel', workdir=None, tunnel=True,
+                 host=None):
         """
         Initialise a kernel on a remote machine and start tunnels.
 
@@ -44,13 +47,17 @@ class RemoteIKernel(object):
         self.cpus = cpus
         self.pe = pe
         self.kernel_cmd = kernel_cmd
-        self.host = ''  # Name of node to be changed once connection is ready.
+        self.host = host  # Name of node to be changed once connection is ready.
         self.connection = None  # will usually be a spawned pexpect
         self.workdir = workdir
         self.cwd = os.getcwd()  # Launch directory may be needed if no workdir
 
+        print(self.__dict__)
+
         if self.interface == 'sge':
             self.launch_sge()
+        elif self.interface == 'ssh':
+            self.launch_ssh()
         else:
             raise ValueError("Unknown interface {0}".format(interface))
 
@@ -81,6 +88,16 @@ class RemoteIKernel(object):
 
         # Child process is available to the class. Keeps it referenced
         self.connection = qlogin
+
+    def launch_ssh(self):
+        """
+        Initialise a connection through ssh.
+
+        Launch an ssh connection using pexpect so it can be interacted with.
+        """
+        login = pexpect.spawn('ssh -o StrictHostKeyChecking=no '
+                              '{host}'.format(host=self.host))
+        self.connection = login
 
     def start_kernel(self):
         """
@@ -162,9 +179,11 @@ def start_remote_kernel():
     parser.add_argument('--pe', default='smp')
     parser.add_argument('--kernel_cmd', default='ipython kernel')
     parser.add_argument('--workdir')
+    parser.add_argument('--host')
     args = parser.parse_args()
 
     kernel = RemoteIKernel(connection_info=args.connection_info,
                            interface=args.interface, cpus=args.cpus, pe=args.pe,
-                           kernel_cmd=args.kernel_cmd, workdir=args.workdir)
+                           kernel_cmd=args.kernel_cmd, workdir=args.workdir,
+                           host=args.host)
     kernel.keep_alive()

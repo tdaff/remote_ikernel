@@ -21,8 +21,7 @@ from IPython.kernel.kernelspec import install_kernel_spec
 from IPython.utils.tempdir import TemporaryDirectory
 
 # How we identify kernels that rik will manage
-RIK_PREFIX = 'rik_'
-
+from remote_ikernel import RIK_PREFIX
 
 def delete_kernel(kernel_name):
     """
@@ -68,7 +67,7 @@ def show_kernel(kernel_name):
 
 
 def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
-               system=False, workdir=None):
+               system=False, workdir=None, host=None):
     """
     Add a kernel. Generates a kernel.json and installs it for the system or
     user.
@@ -82,6 +81,15 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
         argv.extend(['--interface', 'sge'])
         kernel_name.append('sge')
         display_name.append("GridEngine")
+    elif interface == 'ssh':
+        if host is None:
+            raise KeyError('A host is required for ssh.')
+        argv.extend(['--interface', 'sge'])
+        argv.extend(['--host', host])
+        kernel_name.append('ssh')
+        kernel_name.append(host)
+        display_name.append("SSH")
+        display_name.append(host)
     else:
         raise ValueError("Unknown interface {0}".format(interface))
 
@@ -99,8 +107,7 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
         display_name.append('{0} CPUs'.format(cpus))
 
     if workdir is not None:
-         argv.extend(['--workdir', '{0}'.format(workdir)])
-
+         argv.extend(['--workdir', workdir])
 
     # protect the {connection_file} part of the kernel command
     kernel_cmd = kernel_cmd.replace('{connection_file}',
@@ -183,8 +190,10 @@ def manage():
                         "as a multi-core job with this many cores if > 1.")
     parser.add_argument('--pe', help="Parallel environment to use on when"
                         "running on gridengine.")
-    parser.add_argument('--interface', '-i', choices=['sge'], help="Specify "
-                        "how the remote kernel is launched.")
+    parser.add_argument('--host', '-x', help="The hostname or ip address "
+                        "running through an SSH connection.")
+    parser.add_argument('--interface', '-i', choices=['sge', 'ssh'],
+                        help="Specify how the remote kernel is launched.")
     parser.add_argument('--system', help="Install the kernel into the system "
                         "directory so that it is available for all users. "
                         "Might need admin privilidges.", action='store_true')
@@ -202,7 +211,7 @@ def manage():
     if args.add:
         kernel_name = add_kernel(args.interface, args.name, args.kernel_cmd,
                                  args.cpus, args.pe, args.language, args.system,
-                                 args.workdir)
+                                 args.workdir, args.host)
         print("Installed kernel {0}.".format(kernel_name))
     elif args.delete:
         if args.delete in existing_kernels:
