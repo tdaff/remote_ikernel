@@ -84,7 +84,7 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
     elif interface == 'ssh':
         if host is None:
             raise KeyError('A host is required for ssh.')
-        argv.extend(['--interface', 'sge'])
+        argv.extend(['--interface', 'ssh'])
         argv.extend(['--host', host])
         kernel_name.append('ssh')
         kernel_name.append(host)
