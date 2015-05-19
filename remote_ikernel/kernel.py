@@ -130,6 +130,7 @@ class RemoteIKernel(object):
         # whilst simultaneously starting the kernel ended up deleting
         # the file before it was read.
         conn.sendline('rm -f {0}'.format(TEMP_KERNEL_NAME))
+        conn.sendline('exit')
 
         # Could check this for errors?
         conn.expect('.*')

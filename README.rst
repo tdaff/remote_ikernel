@@ -4,12 +4,16 @@ Remote IKernel
 Launch IPython/Jupyter kernels on remote systems so that they can be
 used with local noteboooks.
 
-Kernels start through interactive queues on SGE clusters and
-are tunneled to from the machine running the notebook.
+Kernels start through interactive jobs in batch queue systems (only SGE
+at the moment) or through SSH connections. Once the kernel is started,
+SSH tunnels are created for the communication ports are so the notebook
+can talk to the kernel as if it was local.
 
 Commands for managing the kernels are included.
 
-Install with ``pip install remote_ikernel``.
+Install with ``pip install remote_ikernel``. Requires ``IPython`` version
+3.0 or greater and ``pexpect``. Passwordless ``ssh`` to the remote machines
+is also required.
 
 .. code:: shell
 
@@ -24,21 +28,28 @@ Install with ``pip install remote_ikernel``.
         --kernel_cmd="ipython kernel -f {connection_file}" \
         --name="Python 2.7" --cpus=2 --pe=smp --interface=sge
 
-    # add an SSH connection to a remote machine
+    # add an SSH connection to a remote machine running IJulia
     remote_ikernel manage --add \
-        --kernel_cmd="/remote/location/of/ipython kernel -f {connection_file}" \
-        --name="Python 2.7" --interface=ssh --host=me@remote.machine
-        --workdir='/home/me/Workdir'
+        --kernel_cmd="/home/me/julia-79599ada44/bin/julia -i -F /home/me/.julia/v0.3/IJulia/src/kernel.jl {connection_file}" \
+        --name="IJulia 0.3.8" --interface=ssh \
+        --host=me@remote.machine --workdir='/home/me/Workdir' --language=julia
 
 The kernel spec files will be installed so that the new kernel appears in
 the drop-down list in the notebook.
+
+.. warning::
+   ``IJulia`` kernels don't seem to close properly, so you may have julia
+   processes lingering on your systems. To work around this edit the file
+   ``~/.julia/v0.3/IJulia/src/handlers.jl`` so that ``shutdown_request``
+   calls ``run(`kill $(getpid())`)`` instaed of ``exit()``.
+
 
 Changes for v0.2
 ================
 
   * Connect to a host with ssh.
-  * Changed prefix to 'rik_'.
-  * kernel_cmd now requires the {connection_file} argument.
+  * Changed prefix to ``rik_``.
+  * kernel_cmd now requires the ``{connection_file}`` argument.
   * ``remote_ikernel manage --show`` command to show existing kernels.
   * Specify the working directory on the remote machine with ``--workdir``.
   * ``kernel-uuid.json`` is copied to the working director for systems where
