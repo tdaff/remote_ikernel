@@ -77,7 +77,11 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
     argv = [sys.executable, '-m', 'remote_ikernel']
 
     # How to connect to kernel
-    if interface == 'sge':
+    if interface =='local':
+        argv.extend(['--interface', 'local'])
+        kernel_name.append('local')
+        display_name.append("Local")
+    elif interface == 'sge':
         argv.extend(['--interface', 'sge'])
         kernel_name.append('sge')
         display_name.append("GridEngine")
@@ -90,6 +94,10 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
         kernel_name.append(host)
         display_name.append("SSH")
         display_name.append(host)
+    elif interface == 'slurm':
+        argv.extend(['--interface', 'slurm'])
+        kernel_name.append('slurm')
+        display_name.append("SLURM")
     else:
         raise ValueError("Unknown interface {0}".format(interface))
 
@@ -192,7 +200,8 @@ def manage():
                         "running on gridengine.")
     parser.add_argument('--host', '-x', help="The hostname or ip address "
                         "running through an SSH connection.")
-    parser.add_argument('--interface', '-i', choices=['sge', 'ssh'],
+    parser.add_argument('--interface', '-i',
+                        choices=['local', 'ssh', 'sge', 'slurm'],
                         help="Specify how the remote kernel is launched.")
     parser.add_argument('--system', help="Install the kernel into the system "
                         "directory so that it is available for all users. "

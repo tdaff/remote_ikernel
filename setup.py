@@ -2,7 +2,7 @@
 from setuptools import setup
 
 setup(name='remote_ikernel',
-      version='0.2.1',
+      version='0.2.2',
       description='Running IPython kernels through batch queues',
       long_description=open('README.rst').read(),
       author='Tom Daff',

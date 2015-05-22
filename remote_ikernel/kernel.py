@@ -50,26 +50,48 @@ class RemoteIKernel(object):
         self.host = host  # Name of node to be changed once connection is ready.
         self.connection = None  # will usually be a spawned pexpect
         self.workdir = workdir
+        self.tunnel = tunnel
         self.cwd = os.getcwd()  # Launch directory may be needed if no workdir
 
-        print(self.__dict__)
-
-        if self.interface == 'sge':
+        if self.interface == 'local':
+            self.launch_local()
+        elif self.interface == 'sge':
             self.launch_sge()
         elif self.interface == 'ssh':
             self.launch_ssh()
+        elif self.interface == 'slurm':
+            self.launch_slurm()
         else:
             raise ValueError("Unknown interface {0}".format(interface))
 
         # If we've established a connection, start the kernel!
         if self.connection is not None:
             self.start_kernel()
-            if tunnel:
+            if self.tunnel:
                 self.tunnel_connection()
+
+    def launch_local(self):
+        """
+        Initialise a shell on the local machine that can be interacted with.
+        Stop tunneling.
+        """
+        self.connection = pexpect.spawn('/bin/bash')
+        # Don't try and start tunnels to the same machine. Causes issues.
+        self.tunnel = False
+
+    def launch_ssh(self):
+        """
+        Initialise a connection through ssh.
+
+        Launch an ssh connection using pexpect so it can be interacted with.
+        """
+        login = pexpect.spawn('ssh -o StrictHostKeyChecking=no '
+                              '{host}'.format(host=self.host))
+        self.connection = login
 
     def launch_sge(self):
         """
-        Start a kernel through the gridengine qlogin command. The connection
+        Start a kernel through the gridengine 'qlogin' command. The connection
         will use the object's connection_info and kernel_command.
         """
         if self.cpus > 1:
@@ -89,15 +111,27 @@ class RemoteIKernel(object):
         # Child process is available to the class. Keeps it referenced
         self.connection = qlogin
 
-    def launch_ssh(self):
+    def launch_slurm(self):
         """
-        Initialise a connection through ssh.
+        Start a kernel through the slurm 'srun' command. Bind the spawned
+        pexpect to the class to interact with it.
+        """
+        if self.cpus > 1:
+            tasks = "--cpus-per-task {cpus}".format(cpus=self.cpus)
+        else:
+            tasks = ""
+        # -u disables buffering, -i is interactive, -v so we know the node
+        # tasks must be before the bash!
+        srun = pexpect.spawn('srun  {0} -v -u bash -i'.format(tasks),
+                             timeout=600)
+        # Hopefully this text is universal?
+        srun.expect('srun: Node (.*), .* tasks started')
 
-        Launch an ssh connection using pexpect so it can be interacted with.
-        """
-        login = pexpect.spawn('ssh -o StrictHostKeyChecking=no '
-                              '{host}'.format(host=self.host))
-        self.connection = login
+        node = srun.match.groups()[0]
+        self.host = node
+
+        # Child process is available to the class. Keeps it referenced
+        self.connection = srun
 
     def start_kernel(self):
         """
@@ -178,7 +212,7 @@ def start_remote_kernel():
     parser.add_argument('--interface', default='sge')
     parser.add_argument('--cpus', type=int, default=1)
     parser.add_argument('--pe', default='smp')
-    parser.add_argument('--kernel_cmd', default='ipython kernel')
+    parser.add_argument('--kernel_cmd', default='ipython kernel -f {host_connection_file}')
     parser.add_argument('--workdir')
     parser.add_argument('--host')
     args = parser.parse_args()

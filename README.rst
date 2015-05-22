@@ -5,9 +5,9 @@ Launch IPython/Jupyter kernels on remote systems so that they can be
 used with local noteboooks.
 
 Kernels start through interactive jobs in batch queue systems (only SGE
-at the moment) or through SSH connections. Once the kernel is started,
-SSH tunnels are created for the communication ports are so the notebook
-can talk to the kernel as if it was local.
+and SLURM at the moment) or through SSH connections. Once the kernel is
+started, SSH tunnels are created for the communication ports are so the
+notebook can talk to the kernel as if it was local.
 
 Commands for managing the kernels are included.
 
@@ -47,7 +47,7 @@ the drop-down list in the notebook.
 Changes for v0.2
 ================
 
-  * Connect to a host with ssh.
+  * Connect to a host with ssh, slurm, or local kernels.
   * Changed prefix to ``rik_``.
   * kernel_cmd now requires the ``{connection_file}`` argument.
   * ``remote_ikernel manage --show`` command to show existing kernels.
