@@ -17,22 +17,36 @@ is also required.
 
 .. code:: shell
 
-    # install the module (python setup.py install also works)
+    # Install the module ('python setup.py install' also works)
     pip install remote_ikernel
+
+.. code:: shell
 
     # Set up the kernels you'd like to use
     remote_ikernel manage
 
-    # add a new kernel running through GrideEngine
+.. code:: shell
+
+    # Add a new kernel running through GrideEngine
     remote_ikernel manage --add \
         --kernel_cmd="ipython kernel -f {connection_file}" \
         --name="Python 2.7" --cpus=2 --pe=smp --interface=sge
 
-    # add an SSH connection to a remote machine running IJulia
+.. code:: shell
+
+    # Add an SSH connection to a remote machine running IJulia
     remote_ikernel manage --add \
         --kernel_cmd="/home/me/julia-79599ada44/bin/julia -i -F /home/me/.julia/v0.3/IJulia/src/kernel.jl {connection_file}" \
         --name="IJulia 0.3.8" --interface=ssh \
         --host=me@remote.machine --workdir='/home/me/Workdir' --language=julia
+
+.. code:: shell
+
+    # Set up kernels for all your local virtual environments that can be run
+    # from a single notebook server.
+    remote_ikernel manage --add \
+        --kernel_cmd="/home/me/Virtualenvs/dev/bin/ipython kernel -f {connection_file}" \
+        --name="Python 2 (venv:dev)" --interface=local
 
 The kernel spec files will be installed so that the new kernel appears in
 the drop-down list in the notebook.
