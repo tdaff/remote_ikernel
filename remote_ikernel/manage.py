@@ -192,7 +192,7 @@ def manage():
                         "to install.")
     parser.add_argument('--name', '-n', help="Name to identify the kernel,"
                         "e.g. 'Python 2.7'.")
-    parser.add_argument('--language', '-', help="Explicitly specify the "
+    parser.add_argument('--language', '-l', help="Explicitly specify the "
                         "language of the kernel.")
     parser.add_argument('--cpus', '-c', type=int, help="Launch the kernel "
                         "as a multi-core job with this many cores if > 1.")
