@@ -15,13 +15,13 @@ import os
 import re
 import sys
 from os import path
-
-from IPython.kernel.kernelspec import find_kernel_specs, get_kernel_spec
-from IPython.kernel.kernelspec import install_kernel_spec
-from IPython.utils.tempdir import TemporaryDirectory
+from subprocess import list2cmdline
 
 # How we identify kernels that rik will manage
 from remote_ikernel import RIK_PREFIX
+# These go through a compatibility layer to work with IPython and Jupyter
+from remote_ikernel.compat import kernelspec as ks
+from remote_ikernel.compat import tempdir
 
 def delete_kernel(kernel_name):
     """
@@ -37,7 +37,7 @@ def delete_kernel(kernel_name):
     KeyError
         If the kernel is not found.
     """
-    spec = get_kernel_spec(kernel_name)
+    spec = ks.get_kernel_spec(kernel_name)
     os.remove(path.join(spec.resource_dir, 'kernel.json'))
     try:
         os.rmdir(spec.resource_dir)
@@ -57,13 +57,17 @@ def show_kernel(kernel_name):
         The name of the kernel to show the information for.
     """
     # Load the raw json, since we store some unexpected data in there too
-    spec = get_kernel_spec(kernel_name)
+    spec = ks.get_kernel_spec(kernel_name)
     with open(path.join(spec.resource_dir, 'kernel.json')) as kernel_file:
         kernel_json = json.load(kernel_file)
 
     # Manually format the json to put each key: value on a single line
-    print("Kernel found in :{0}".format(spec.resource_dir))
-    print("kernel_json = {0}".format(json.dumps(kernel_json)))
+    print("  * Kernel found in: {0}".format(spec.resource_dir))
+    print("  * Name: {0}".format(spec.display_name))
+    print("  * Kernel command: {0}".format(list2cmdline(spec.argv)))
+    print("  * remote_ikernel command: {0}".format(list2cmdline(
+        kernel_json['remote_ikernel_argv'])))
+    print("  * Raw json: {0}".format(json.dumps(kernel_json, indent=2)))
 
 
 def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
@@ -146,13 +150,14 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
         username = getpass.getuser()
 
     # kernel.json file installation
-    with TemporaryDirectory() as temp_dir:
+    with tempdir.TemporaryDirectory() as temp_dir:
         os.chmod(temp_dir, 0o755)  # Starts off as 700, not user readable
 
         with open(path.join(temp_dir, 'kernel.json'), 'w') as kernel_file:
             json.dump(kernel_json, kernel_file, sort_keys=True, indent=2)
 
-        install_kernel_spec(temp_dir, kernel_name, user=username, replace=True)
+        ks.install_kernel_spec(temp_dir, kernel_name,
+                               user=username, replace=True)
 
     return kernel_name
 
@@ -170,9 +175,9 @@ def manage():
     existing_kernels = {}
 
     # Sort so they are always in the same order
-    for kernel_name in sorted(find_kernel_specs()):
+    for kernel_name in sorted(ks.find_kernel_specs()):
         if kernel_name.startswith(RIK_PREFIX):
-            spec = get_kernel_spec(kernel_name)
+            spec = ks.get_kernel_spec(kernel_name)
             display = "  ['{kernel_name}']: {desc}".format(
                 kernel_name=kernel_name, desc=spec.display_name)
             existing_kernels[kernel_name] = spec

@@ -1,8 +1,12 @@
-#from distutils.core import setup
-from setuptools import setup
+# default to setuptools so that 'setup.py develop' is available,
+# but fall back to standard modules that do the same
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
 
 setup(name='remote_ikernel',
-      version='0.2.2',
+      version='0.2.3',
       description='Running IPython kernels through batch queues',
       long_description=open('README.rst').read(),
       author='Tom Daff',

@@ -68,3 +68,4 @@ Changes for v0.2
   * Specify the working directory on the remote machine with ``--workdir``.
   * ``kernel-uuid.json`` is copied to the working director for systems where
     there is no access to the frontend filesystem.
+  * compatibility layer to get rid of Jupyter warnings
