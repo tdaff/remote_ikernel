@@ -18,7 +18,7 @@ import pexpect
 from tornado.log import LogFormatter
 from zmq.ssh.tunnel import ssh_tunnel
 
-from remote_ikernel import RIK_PREFIX
+from remote_ikernel import RIK_PREFIX, __version__
 
 # Where remote system has a different filesystem, a temporary file is needed
 # to hold the json.
@@ -59,6 +59,9 @@ def _setup_logging(verbose):
 
         """
         message = args[0]
+        # convert bytes from pexpect to something that prints better
+        if hasattr(message, 'decode'):
+            message = message.decode('utf-8')
 
         for line in message.splitlines():
             if line.strip():
@@ -82,13 +85,15 @@ class RemoteIKernel(object):
 
     def __init__(self, connection_info=None, interface='sge', cpus=1, pe='smp',
                  kernel_cmd='ipython kernel', workdir=None, tunnel=True,
-                 host=None, verbose=True):
+                 host=None, verbose=False):
         """
         Initialise a kernel on a remote machine and start tunnels.
 
         """
 
         self.log = _setup_logging(verbose)
+        self.log.info("Remote kernel version: {0}.".format(__version__))
+        self.log.info("File location: {0}.".format(__file__))
         # The connection info is provided by the notebook
         self.connection_info = json.load(open(connection_info))
         self.interface = interface
@@ -242,9 +247,14 @@ class RemoteIKernel(object):
                       '{host}'.format(host=self.host)).sendline('exit')
         # Use zmq's convenience tunnel setup
         tunnelled_ports = []
+        # zmq needs str in Python 3, but pexpect gives bytes
+        if hasattr(self.host, 'decode'):
+            host = self.host.decode('utf-8')
+        else:
+            host = self.host
         for port_name in PORT_NAMES:
             port = self.connection_info[port_name]
-            ssh_tunnel(port, port, self.host, '*')
+            ssh_tunnel(port, port, host, '*')
             tunnelled_ports.append("{0}".format(port))
         self.log.info("Setting up tunnels on ports: {0}.".format(
             ", ".join(tunnelled_ports)))

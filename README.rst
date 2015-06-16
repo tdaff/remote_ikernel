@@ -61,6 +61,7 @@ the drop-down list in the notebook.
 Changes for v0.2
 ================
 
+  * Better compatibility with Python 3.
   * Kernel output on terminals with ``--verbose`` option for debugging.
   * Connect to a host with ssh, slurm, or local kernels.
   * Changed prefix to ``rik_``.
@@ -69,4 +70,4 @@ Changes for v0.2
   * Specify the working directory on the remote machine with ``--workdir``.
   * ``kernel-uuid.json`` is copied to the working director for systems where
     there is no access to the frontend filesystem.
-  * compatibility layer to get rid of Jupyter warnings
+  * Added compatibility layer to get rid of Jupyter warnings.

@@ -113,7 +113,7 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
         kernel_name.append(pe)
         display_name.append(pe)
 
-    if cpus > 1:
+    if cpus and cpus > 1:
         argv.extend(['--cpus', '{0}'.format(cpus)])
         kernel_name.append('{0}'.format(cpus))
         display_name.append('{0} CPUs'.format(cpus))
