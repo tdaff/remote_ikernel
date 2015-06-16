@@ -61,6 +61,7 @@ the drop-down list in the notebook.
 Changes for v0.2
 ================
 
+  * Kernel output on terminals with ``--verbose`` option for debugging.
   * Connect to a host with ssh, slurm, or local kernels.
   * Changed prefix to ``rik_``.
   * kernel_cmd now requires the ``{connection_file}`` argument.

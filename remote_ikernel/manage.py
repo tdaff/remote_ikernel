@@ -71,7 +71,7 @@ def show_kernel(kernel_name):
 
 
 def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
-               system=False, workdir=None, host=None):
+               system=False, workdir=None, host=None, verbose=False):
     """
     Add a kernel. Generates a kernel.json and installs it for the system or
     user.
@@ -120,6 +120,9 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
 
     if workdir is not None:
          argv.extend(['--workdir', workdir])
+
+    if verbose:
+        argv.extend(['--verbose'])
 
     # protect the {connection_file} part of the kernel command
     kernel_cmd = kernel_cmd.replace('{connection_file}',
@@ -210,11 +213,13 @@ def manage():
                         help="Specify how the remote kernel is launched.")
     parser.add_argument('--system', help="Install the kernel into the system "
                         "directory so that it is available for all users. "
-                        "Might need admin privilidges.", action='store_true')
+                        "Might need admin privileges.", action='store_true')
     parser.add_argument('--workdir', help="Directory in which to start the "
                         "kernel. If not specified it will use the current "
                         "directory. This is important if the local and remote "
                         "filesystems differ.")
+    parser.add_argument('--verbose', '-v', action='store_true', help="Running "
+                        "kernel will produce verbose debugging on the console.")
 
     # Temporarily remove 'manage' from the arguments
     raw_args = sys.argv[:]
@@ -225,7 +230,7 @@ def manage():
     if args.add:
         kernel_name = add_kernel(args.interface, args.name, args.kernel_cmd,
                                  args.cpus, args.pe, args.language, args.system,
-                                 args.workdir, args.host)
+                                 args.workdir, args.host, args.verbose)
         print("Installed kernel {0}.".format(kernel_name))
     elif args.delete:
         if args.delete in existing_kernels:
