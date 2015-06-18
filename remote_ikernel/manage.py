@@ -23,6 +23,7 @@ from remote_ikernel import RIK_PREFIX
 from remote_ikernel.compat import kernelspec as ks
 from remote_ikernel.compat import tempdir
 
+
 def delete_kernel(kernel_name):
     """
     Delete the kernel by removing the kernel.json and directory.
@@ -132,8 +133,11 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
     # remote_ikernel needs the connection file too
     argv.append('{connection_file}')
 
-    # Prefix all kernels with 'remote_' for management.
-    kernel_name = RIK_PREFIX + '-'.join(kernel_name)
+    # Prefix all kernels with 'rik_' for management.
+    kernel_name = RIK_PREFIX + '_'.join(kernel_name)
+    # Having an @ in the string messes up the javascript;
+    # so get rid of evrything just in case.
+    kernel_name = re.sub(r'\W', '_', kernel_name)
     kernel_json = {
         'display_name': " ".join(display_name),
         'argv': argv,
