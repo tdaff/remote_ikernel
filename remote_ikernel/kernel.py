@@ -254,7 +254,7 @@ class RemoteIKernel(object):
             host = self.host
         for port_name in PORT_NAMES:
             port = self.connection_info[port_name]
-            ssh_tunnel(port, port, host, '*')
+            ssh_tunnel(port, port, host, remoteip='127.0.0.1', timeout=600)
             tunnelled_ports.append("{0}".format(port))
         self.log.info("Setting up tunnels on ports: {0}.".format(
             ", ".join(tunnelled_ports)))
