@@ -67,6 +67,9 @@ the drop-down list in the notebook.
 Changes for v0.2
 ================
 
+  * ``--remote-launch-args`` can be used to set ``qlogin`` parameters or similar.
+  * ``--remote-precmd`` allows execution of an extra command on the remote host
+    before launching a kernel.
   * Better compatibility with Python 3.
   * Kernel output on terminals with ``--verbose`` option for debugging.
   * Connect to a host with ssh, slurm, or local kernels.

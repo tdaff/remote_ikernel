@@ -72,7 +72,8 @@ def show_kernel(kernel_name):
 
 
 def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
-               system=False, workdir=None, host=None, verbose=False):
+               system=False, workdir=None, host=None, precmd=None,
+               launch_args=None, verbose=False):
     """
     Add a kernel. Generates a kernel.json and installs it for the system or
     user.
@@ -120,7 +121,13 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
         display_name.append('{0} CPUs'.format(cpus))
 
     if workdir is not None:
-         argv.extend(['--workdir', workdir])
+        argv.extend(['--workdir', workdir])
+
+    if precmd is not None:
+        argv.extend(['--precmd', precmd])
+
+    if launch_args is not None:
+        argv.extend(['--launch-args', launch_args])
 
     if verbose:
         argv.extend(['--verbose'])
@@ -222,6 +229,13 @@ def manage():
                         "kernel. If not specified it will use the current "
                         "directory. This is important if the local and remote "
                         "filesystems differ.")
+    parser.add_argument('--remote-precmd', help="Command to execute on the "
+                        "remote host before launching the kernel, but after "
+                        "changing to the working directory.")
+    parser.add_argument('--remote-launch-args', help="Arguments to add to the "
+                        "command that launches the remote session, i.e. the "
+                        "ssh or qlogin command, such as '-l h_rt=24:00:00' to "
+                        "limit job time on GridEngine jobs.")
     parser.add_argument('--verbose', '-v', action='store_true', help="Running "
                         "kernel will produce verbose debugging on the console.")
 
@@ -234,7 +248,8 @@ def manage():
     if args.add:
         kernel_name = add_kernel(args.interface, args.name, args.kernel_cmd,
                                  args.cpus, args.pe, args.language, args.system,
-                                 args.workdir, args.host, args.verbose)
+                                 args.workdir, args.host, args.remote_precmd,
+                                 args.remote_launch_args, args.verbose)
         print("Installed kernel {0}.".format(kernel_name))
     elif args.delete:
         if args.delete in existing_kernels:

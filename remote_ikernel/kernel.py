@@ -84,8 +84,8 @@ class RemoteIKernel(object):
     """
 
     def __init__(self, connection_info=None, interface='sge', cpus=1, pe='smp',
-                 kernel_cmd='ipython kernel', workdir=None, tunnel=True,
-                 host=None, verbose=False):
+                 kernel_cmd='ipython kernel', workdir=None, tunnel=False,
+                 host=None, precmd=None, launch_args=None, verbose=False):
         """
         Initialise a kernel on a remote machine and start tunnels.
 
@@ -104,6 +104,8 @@ class RemoteIKernel(object):
         self.connection = None  # will usually be a spawned pexpect
         self.workdir = workdir
         self.tunnel = tunnel
+        self.precmd = precmd
+        self.launch_args = launch_args
         self.cwd = os.getcwd()  # Launch directory may be needed if no workdir
 
         if self.interface == 'local':
@@ -129,7 +131,11 @@ class RemoteIKernel(object):
         Stop tunneling.
         """
         self.log.info("Launching local kernel.")
-        self.connection = pexpect.spawn('/bin/bash', logfile=self.log)
+        if self.launch_args:
+            bash = '/bin/bash {0}'.format(self.launch_args)
+        else:
+            bash = '/bin/bash'
+        self.connection = pexpect.spawn(bash, logfile=self.log)
         # Don't try and start tunnels to the same machine. Causes issues.
         self.tunnel = False
 
@@ -140,8 +146,12 @@ class RemoteIKernel(object):
         Launch an ssh connection using pexpect so it can be interacted with.
         """
         self.log.info("Launching kernel over SSH.")
-        login_cmd = 'ssh -o StrictHostKeyChecking=no {host}'.format(
-            host=self.host)
+        if self.launch_args:
+            launch_args = self.launch_args
+        else:
+            launch_args = ''
+        login_cmd = 'ssh -o StrictHostKeyChecking=no {args} {host}'.format(
+            args=launch_args, host=self.host)
         self.log.debug("Login command: '{0}'.".format(login_cmd))
         login = pexpect.spawn(login_cmd, logfile=self.log)
         self.connection = login
@@ -152,11 +162,17 @@ class RemoteIKernel(object):
         will use the object's connection_info and kernel_command.
         """
         self.log.info("Launching kernel through GridEngine.")
+        job_name = 'remote_ikernel'
         if self.cpus > 1:
             pe_string = "-pe {pe} {cpus}".format(pe=self.pe, cpus=self.cpus)
         else:
             pe_string = ''
-        sge_cmd = 'qlogin -now n {0}'.format(pe_string)
+        if self.launch_args:
+            args_string = self.launch_args
+        else:
+            args_string = ''
+        sge_cmd = 'qlogin -now n {0} -N {1} {2}'.format(pe_string, job_name,
+                                                        args_string)
         self.log.debug("Gridengine command: '{0}'.".format(sge_cmd))
         # Will wait in the queue for up to 10 mins
         qlogin = pexpect.spawn(sge_cmd, logfile=self.log, timeout=600)
@@ -176,13 +192,19 @@ class RemoteIKernel(object):
         pexpect to the class to interact with it.
         """
         self.log.info("Launching kernel through SLURM.")
+        job_name = 'remote_ikernel'
         if self.cpus > 1:
             tasks = "--cpus-per-task {cpus}".format(cpus=self.cpus)
         else:
             tasks = ""
+        if self.launch_args:
+            launch_args = self.launch_args
+        else:
+            launch_args = ''
         # -u disables buffering, -i is interactive, -v so we know the node
         # tasks must be before the bash!
-        srun_cmd = 'srun  {0} -v -u bash -i'.format(tasks)
+        srun_cmd = 'srun  {tasks} -J {job_name} {args} -v -u bash -i'.format(
+            tasks=tasks, job_name=job_name, args=launch_args)
         self.log.info("SLURM command: '{0}'.".format(srun_cmd))
         srun = pexpect.spawn(srun_cmd, logfile=self.log, timeout=600)
         # Hopefully this text is universal?
@@ -217,6 +239,11 @@ class RemoteIKernel(object):
         file_contents = json.dumps(self.connection_info)
         conn.sendline('echo \'{0}\' > {1}'.format(file_contents,
                                                   TEMP_KERNEL_NAME))
+
+        # Is this the best place for a pre-command? I guess people will just
+        # have to deal with it. Pass it on as is.
+        if self.precmd:
+            conn.sendline(self.precmd)
 
         # Init as a background process so we can delete the tempfile after
         kernel_init = '{kernel_cmd}'.format(kernel_cmd=self.kernel_cmd)
@@ -291,11 +318,14 @@ def start_remote_kernel():
     parser.add_argument('--kernel_cmd', default='ipython kernel -f {host_connection_file}')
     parser.add_argument('--workdir')
     parser.add_argument('--host')
+    parser.add_argument('--precmd')
+    parser.add_argument('--launch-args')
     parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
 
     kernel = RemoteIKernel(connection_info=args.connection_info,
                            interface=args.interface, cpus=args.cpus, pe=args.pe,
                            kernel_cmd=args.kernel_cmd, workdir=args.workdir,
-                           host=args.host, verbose=args.verbose)
+                           host=args.host, precmd=args.precmd,
+                           launch_args=args.launch_args, verbose=args.verbose)
     kernel.keep_alive()
