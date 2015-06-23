@@ -84,7 +84,7 @@ class RemoteIKernel(object):
     """
 
     def __init__(self, connection_info=None, interface='sge', cpus=1, pe='smp',
-                 kernel_cmd='ipython kernel', workdir=None, tunnel=False,
+                 kernel_cmd='ipython kernel', workdir=None, tunnel=True,
                  host=None, precmd=None, launch_args=None, verbose=False):
         """
         Initialise a kernel on a remote machine and start tunnels.
