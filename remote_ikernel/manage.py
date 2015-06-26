@@ -83,7 +83,7 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
     argv = [sys.executable, '-m', 'remote_ikernel']
 
     # How to connect to kernel
-    if interface =='local':
+    if interface == 'local':
         argv.extend(['--interface', 'local'])
         kernel_name.append('local')
         display_name.append("Local")

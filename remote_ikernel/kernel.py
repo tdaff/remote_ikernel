@@ -16,7 +16,6 @@ import time
 import pexpect
 
 from tornado.log import LogFormatter
-from zmq.ssh.tunnel import ssh_tunnel
 
 from remote_ikernel import RIK_PREFIX, __version__
 
@@ -53,7 +52,7 @@ def _setup_logging(verbose):
 
     # So that we can attach these to pexpect for debugging purposes
     # we need to make them look like files
-    def _write(*args, **kwargs):
+    def _write(*args, **_):
         """
         Method to attach to a logger to allow it to act like a file object.
 
@@ -68,6 +67,7 @@ def _setup_logging(verbose):
                 log.debug(line)
 
     def _pass():
+        """pass"""
         pass
 
     log.write = _write
@@ -104,6 +104,7 @@ class RemoteIKernel(object):
         self.connection = None  # will usually be a spawned pexpect
         self.workdir = workdir
         self.tunnel = tunnel
+        self.tunnels = {}  # Processes running the SSH tunnels
         self.precmd = precmd
         self.launch_args = launch_args
         self.cwd = os.getcwd()  # Launch directory may be needed if no workdir
@@ -272,19 +273,25 @@ class RemoteIKernel(object):
         # to work seamlessly.
         pexpect.spawn('ssh -o StrictHostKeyChecking=no '
                       '{host}'.format(host=self.host)).sendline('exit')
-        # Use zmq's convenience tunnel setup
+
         tunnelled_ports = []
-        # zmq needs str in Python 3, but pexpect gives bytes
-        if hasattr(self.host, 'decode'):
-            host = self.host.decode('utf-8')
-        else:
-            host = self.host
         for port_name in PORT_NAMES:
             port = self.connection_info[port_name]
-            ssh_tunnel(port, port, host, remoteip='127.0.0.1', timeout=600)
+            tunnel = pexpect.spawn(self.tunnel_cmd.format(port=port))
             tunnelled_ports.append("{0}".format(port))
+            self.tunnels[port] = tunnel
         self.log.info("Setting up tunnels on ports: {0}.".format(
             ", ".join(tunnelled_ports)))
+
+    def check_tunnels(self):
+        """
+        Check the PID of tunnels and restart any that have died.
+        """
+        for port, tunnel in self.tunnels.items():
+            if not tunnel.isalive():
+                self.tunnels[port] = pexpect.spawn(
+                    self.tunnel_cmd.format(port=port))
+                self.log.debug("Restarted tunnel on port {0}".format(port))
 
     def keep_alive(self):
         """
@@ -296,11 +303,34 @@ class RemoteIKernel(object):
         # process doesn't do anything and is managed by the notebook
         # it really doesn't matter
         while True:
+            self.check_tunnels()
             try:
-                time.sleep(60)
+                time.sleep(20)
             except KeyboardInterrupt:
                 self.log.info("Caught interrupt; sending to kernel.")
                 self.connection.sendcontrol('c')
+
+    @property
+    def tunnel_cmd(self):
+        """Return a tunnelling command that just needs a port."""
+        # zmq needs str in Python 3, but pexpect gives bytes
+        if hasattr(self.host, 'decode'):
+            self.host = self.host.decode('utf-8')
+
+        if ':' in self.host:
+            host, host_port = self.host.split(":")
+            ssh = 'ssh -p {host_port}'.format(host_port)
+        else:
+            ssh = 'ssh '
+            host = self.host
+
+        # Timeout is specified here, this should be longer than the checking
+        # interval
+        tunnel_cmd = ("{ssh} -S none "
+                      "-L 127.0.0.1:{{port}}:127.0.0.1:{{port}} "
+                      "{host} sleep 600".format(ssh=ssh, host=host))
+
+        return tunnel_cmd
 
 
 def start_remote_kernel():
@@ -315,7 +345,8 @@ def start_remote_kernel():
     parser.add_argument('--interface', default='local')
     parser.add_argument('--cpus', type=int, default=1)
     parser.add_argument('--pe', default='smp')
-    parser.add_argument('--kernel_cmd', default='ipython kernel -f {host_connection_file}')
+    parser.add_argument('--kernel_cmd',
+                        default='ipython kernel -f {host_connection_file}')
     parser.add_argument('--workdir')
     parser.add_argument('--host')
     parser.add_argument('--precmd')
