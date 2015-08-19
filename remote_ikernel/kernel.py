@@ -111,6 +111,8 @@ class RemoteIKernel(object):
 
         if self.interface == 'local':
             self.launch_local()
+        elif self.interface == 'pbs':
+            self.launch_pbs()
         elif self.interface == 'sge':
             self.launch_sge()
         elif self.interface == 'ssh':
@@ -156,6 +158,43 @@ class RemoteIKernel(object):
         self.log.debug("Login command: '{0}'.".format(login_cmd))
         login = pexpect.spawn(login_cmd, logfile=self.log)
         self.connection = login
+
+    def launch_pbs(self):
+        """
+        Start a kernel through the torque 'qsub -I' command. The connection
+        will use the object's connection_info and kernel_command.
+        """
+        self.log.info("Launching kernel through PBS/Torque.")
+        job_name = 'remote_ikernel'
+        if self.cpus > 1:
+            cpu_string = "-l ncpus={cpus}".format(cpus=self.cpus)
+        else:
+            cpu_string = ''
+        if self.launch_args:
+            args_string = self.launch_args
+        else:
+            args_string = ''
+        pbs_cmd = 'qsub -I {0} -N {1} {2}'.format(cpu_string, job_name,
+                                                  args_string)
+        self.log.debug("PBS command: '{0}'.".format(pbs_cmd))
+        # Will wait in the queue for up to 10 mins
+        qsub_i = pexpect.spawn(pbs_cmd, logfile=self.log, timeout=600)
+        # Hopefully this text is universal? Job started...
+        qsub_i.expect('qsub: job (.*) ready')
+        # Now we have to ask for the hostname (any way for it to
+        # say automatically?)
+        qsub_i.sendline('echo Running on `hostname`')
+
+        # hostnames whould be alphanumeric with . and - permitted
+        # This way we also ignore the echoed echo command
+        qsub_i.expect('Running on ([\w.-]+)')
+        node = qsub_i.match.groups()[0]
+
+        self.log.info("Established session on node: {0}.".format(node))
+        self.host = node
+
+        # Child process is available to the class. Keeps it referenced
+        self.connection = qsub_i
 
     def launch_sge(self):
         """

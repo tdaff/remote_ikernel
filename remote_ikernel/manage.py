@@ -87,6 +87,9 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
         argv.extend(['--interface', 'local'])
         kernel_name.append('local')
         display_name.append("Local")
+    elif interface == 'pbs':
+        argv.extend(['--interface', 'pbs'])
+        display_name.append('PBS')
     elif interface == 'sge':
         argv.extend(['--interface', 'sge'])
         kernel_name.append('sge')
@@ -220,7 +223,7 @@ def manage():
     parser.add_argument('--host', '-x', help="The hostname or ip address "
                         "running through an SSH connection.")
     parser.add_argument('--interface', '-i',
-                        choices=['local', 'ssh', 'sge', 'slurm'],
+                        choices=['local', 'ssh', 'pbs', 'sge', 'slurm'],
                         help="Specify how the remote kernel is launched.")
     parser.add_argument('--system', help="Install the kernel into the system "
                         "directory so that it is available for all users. "

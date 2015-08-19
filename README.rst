@@ -67,6 +67,7 @@ the drop-down list in the notebook.
 Changes for v0.2
 ================
 
+  * Support for PBS/Torque through ``qsub -I``.
   * Tunnels are kept alive better, if something is not responding try waiting
     20 seconds to see if a tunnel had dies. (Tunnels no longer depend on pyzmq,
     instead they are launched through pexpect and monitored until they die.)
