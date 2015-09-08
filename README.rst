@@ -1,19 +1,33 @@
 Remote IKernel
 --------------
 
-Launch IPython/Jupyter kernels on remote systems so that they can be
+Launch Jupyter kernels on remote systems so that they can be
 used with local noteboooks.
 
-Kernels start through interactive jobs in batch queue systems (only SGE
-and SLURM at the moment) or through SSH connections. Once the kernel is
+..image :: https://bitbucket.org/tdaff/remote_ikernel/raw/default/doc/kernels.png
+
+Kernels start through interactive jobs in batch queue systems (SGE, SLURM,
+PBS...) or through SSH connections. Once the kernel is
 started, SSH tunnels are created for the communication ports are so the
 notebook can talk to the kernel as if it was local.
 
-Commands for managing the kernels are included.
+Commands for managing the kernels are included. There are also options for
+managing kernels from different virtual environments or different python
+implementations.
 
-Install with ``pip install remote_ikernel``. Requires ``IPython`` version
-3.0 or greater and ``pexpect``. Passwordless ``ssh`` to the remote machines
-is also required.
+Install with ``pip install remote_ikernel``. Requires ``notebook`` (as part
+of jupyter), version 4.0 or greater and ``pexpect``. Passwordless ``ssh``
+to the remote machines is also required.
+
+.. note::
+
+   Version 0.3 of this package depends on the split Jupyter and IPython
+   version 4 and later when installing with pip. If you are upgrading
+   from an older version of IPython, Jupyter will probably migrate your
+   existing kernels (to `~/.local/share/jupyter/kernels/`), but not
+   profiles. If you need to stick with IPython 3 series, use an older
+   version of `remote_ikernel` or install without using pip/setuptools.
+
 
 .. code:: shell
 
@@ -46,7 +60,7 @@ is also required.
 
 .. code:: shell
 
-    # Set up kernels for all your local virtual environments that can be run
+    # Set up kernels for your local virtual environments that can be run
     # from a single notebook server.
 
     remote_ikernel manage --add \
@@ -63,6 +77,12 @@ the drop-down list in the notebook.
    ``~/.julia/v0.3/IJulia/src/handlers.jl`` so that ``shutdown_request``
    calls ``run(`kill $(getpid())`)`` instaed of ``exit()``.
 
+
+Changes for v0.3
+================
+
+  * Updated pip requirements to pull in the `notebook` package. Use an earlier
+    version if you need to use IPython 3.
 
 Changes for v0.2
 ================
