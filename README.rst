@@ -67,6 +67,9 @@ the drop-down list in the notebook.
 Changes for v0.2
 ================
 
+  * Version 0.2.11 is the last version to support IPython notebook version 3.
+    `pip` requirements enforce versions less than 4. Use a more recent version
+    to ensure compatibility with the Jupyter split.
   * Support for PBS/Torque through ``qsub -I``.
   * Tunnels are kept alive better, if something is not responding try waiting
     20 seconds to see if a tunnel had dies. (Tunnels no longer depend on pyzmq,

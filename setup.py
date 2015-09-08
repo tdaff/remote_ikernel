@@ -6,7 +6,7 @@ except ImportError:
     from distutils.core import setup
 
 setup(name='remote_ikernel',
-      version='0.2.9',
+      version='0.2.11',
       description='Running IPython kernels through batch queues',
       long_description=open('README.rst').read(),
       author='Tom Daff',
@@ -15,7 +15,7 @@ setup(name='remote_ikernel',
       url='https://bitbucket.org/tdaff/remote_ikernel',
       packages=['remote_ikernel'],
       scripts=['bin/remote_ikernel'],
-      install_requires=['ipython', 'pexpect', 'tornado'],
+      install_requires=['ipython[notebook]<4', 'pexpect', 'tornado'],
       classifiers=[
           'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 3',
