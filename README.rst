@@ -4,7 +4,7 @@ Remote IKernel
 Launch Jupyter kernels on remote systems so that they can be
 used with local noteboooks.
 
-..image :: https://bitbucket.org/tdaff/remote_ikernel/raw/default/doc/kernels.png
+.. image :: https://bitbucket.org/tdaff/remote_ikernel/raw/default/doc/kernels.png
 
 Kernels start through interactive jobs in batch queue systems (SGE, SLURM,
 PBS...) or through SSH connections. Once the kernel is
