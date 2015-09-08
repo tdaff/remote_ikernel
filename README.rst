@@ -16,7 +16,7 @@ managing kernels from different virtual environments or different python
 implementations.
 
 Install with ``pip install remote_ikernel``. Requires ``notebook`` (as part
-of jupyter), version 4.0 or greater and ``pexpect``. Passwordless ``ssh``
+of Jupyter), version 4.0 or greater and ``pexpect``. Passwordless ``ssh``
 to the remote machines is also required.
 
 .. note::
@@ -24,9 +24,9 @@ to the remote machines is also required.
    Version 0.3 of this package depends on the split Jupyter and IPython
    version 4 and later when installing with pip. If you are upgrading
    from an older version of IPython, Jupyter will probably migrate your
-   existing kernels (to `~/.local/share/jupyter/kernels/`), but not
+   existing kernels (to ``~/.local/share/jupyter/kernels/``), but not
    profiles. If you need to stick with IPython 3 series, use an older
-   version of `remote_ikernel` or install without using pip/setuptools.
+   version of ``remote_ikernel`` or install without using pip/setuptools.
 
 
 .. code:: shell
