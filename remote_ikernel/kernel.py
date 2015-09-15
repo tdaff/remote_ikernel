@@ -332,19 +332,41 @@ class RemoteIKernel(object):
                     self.tunnel_cmd.format(port=port))
                 self.log.debug("Restarted tunnel on port {0}".format(port))
 
-    def keep_alive(self):
+    def keep_alive(self, timeout=5):
         """
         Keep the script alive forever. KeyboardInterrupt will get passed on
-        to the kernel.
+        to the kernel. The timeout determines how often the ssh tunnels are
+        checked.
         """
+        # The timeout determines how long each loop will be,
+        # if an ssh tunnel dies, this is how long it will be
+        # before it is revived.
+        self.connection.timeout = timeout
+        time.sleep(timeout)
 
         # There might be a more elegant way to do this, but since this
         # process doesn't do anything and is managed by the notebook
         # it really doesn't matter
         while True:
+            # If the kernel dies, we should too, but try and
+            # give some error info
+            if not self.connection.isalive():
+                self.log.error("Kernel died.")
+                for line in self.connection.readlines():
+                    if line.strip():
+                        self.log.error(line)
+                break
+            # Kernel is still alive, ensure tunnels are too
             self.check_tunnels()
             try:
-                time.sleep(20)
+                # read anything from the kernel output, pexpect
+                # logging will be set up to emit anything if
+                # required.
+                self.connection.readlines()
+            except pexpect.TIMEOUT:
+                # Raises timeout if there is no data, prevents blocking
+                # Moves on to the next loop.
+                pass
             except KeyboardInterrupt:
                 self.log.info("Caught interrupt; sending to kernel.")
                 self.connection.sendcontrol('c')

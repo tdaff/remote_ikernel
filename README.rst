@@ -83,6 +83,8 @@ Changes for v0.3
 
   * Updated pip requirements to pull in the `notebook` package. Use an earlier
     version if you need to use IPython 3.
+  * Remote process is polled for output which will show up when ``--verbose``
+    if used as a kernel option.
 
 Changes for v0.2
 ================
