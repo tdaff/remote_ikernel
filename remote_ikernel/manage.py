@@ -73,7 +73,7 @@ def show_kernel(kernel_name):
 
 def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
                system=False, workdir=None, host=None, precmd=None,
-               launch_args=None, verbose=False):
+               launch_args=None, tunnel_hosts=None, verbose=False):
     """
     Add a kernel. Generates a kernel.json and installs it for the system or
     user.
@@ -131,6 +131,12 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
 
     if launch_args is not None:
         argv.extend(['--launch-args', launch_args])
+
+    if tunnel_hosts:
+        # This will be a list of hosts
+        kernel_name.append('via_{0}'.format("_".join(tunnel_hosts)))
+        display_name.append("(via {0})".format(" ".join(tunnel_hosts)))
+        argv.extend(['--tunnel-hosts'] + tunnel_hosts)
 
     if verbose:
         argv.extend(['--verbose'])
@@ -221,7 +227,8 @@ def manage():
     parser.add_argument('--pe', help="Parallel environment to use on when"
                         "running on gridengine.")
     parser.add_argument('--host', '-x', help="The hostname or ip address "
-                        "running through an SSH connection.")
+                        "running through an SSH connection. For non standard "
+                        "ports use host:port.")
     parser.add_argument('--interface', '-i',
                         choices=['local', 'ssh', 'pbs', 'sge', 'slurm'],
                         help="Specify how the remote kernel is launched.")
@@ -239,6 +246,10 @@ def manage():
                         "command that launches the remote session, i.e. the "
                         "ssh or qlogin command, such as '-l h_rt=24:00:00' to "
                         "limit job time on GridEngine jobs.")
+    parser.add_argument('--tunnel-hosts', '-t', nargs='+', help="Tunnel the "
+                        "connection through the given ssh hosts before "
+                        "starting the endpoint interface. Works with any "
+                        "interface. For non standard ports use host:port.")
     parser.add_argument('--verbose', '-v', action='store_true', help="Running "
                         "kernel will produce verbose debugging on the console.")
 
@@ -252,7 +263,8 @@ def manage():
         kernel_name = add_kernel(args.interface, args.name, args.kernel_cmd,
                                  args.cpus, args.pe, args.language, args.system,
                                  args.workdir, args.host, args.remote_precmd,
-                                 args.remote_launch_args, args.verbose)
+                                 args.remote_launch_args, args.tunnel_hosts,
+                                 args.verbose)
         print("Installed kernel {0}.".format(kernel_name))
     elif args.delete:
         if args.delete in existing_kernels:

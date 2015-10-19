@@ -1,28 +1,37 @@
 Remote IKernel
 --------------
 
-Launch Jupyter kernels on remote systems so that they can be
-used with local noteboooks.
+All your Jupyter kernels, on all your machines, in one place.
+
+Launch Jupyter kernels on remote systems and through batch queues so that
+they can be used within a local Jupyter noteboook.
 
 .. image :: https://bitbucket.org/tdaff/remote_ikernel/raw/default/doc/kernels.png
 
-Kernels start through interactive jobs in batch queue systems (SGE, SLURM,
-PBS...) or through SSH connections. Once the kernel is
+Jupyter compatible Kernels start through interactive jobs in batch queue
+systems (SGE, SLURM, PBS...) or through SSH connections. Once the kernel is
 started, SSH tunnels are created for the communication ports are so the
 notebook can talk to the kernel as if it was local.
 
-Commands for managing the kernels are included. There are also options for
-managing kernels from different virtual environments or different python
-implementations.
+Commands for managing the kernels are included. It is also possible to use
+``remote_ikernel`` to manage kernels from different virtual environments or
+different python implementations.
 
 Install with ``pip install remote_ikernel``. Requires ``notebook`` (as part
 of Jupyter), version 4.0 or greater and ``pexpect``. Passwordless ``ssh``
-to the remote machines is also required.
+to the all the remote machines is also required (e.g. nodes on a cluster).
 
 .. note::
 
-   Version 0.3 of this package depends on the split Jupyter and IPython
-   version 4 and later when installing with pip. If you are upgrading
+   When running kernels on remote machines, the notebooks themselves will
+   be saved onto the local filesystem, but the kernel will only have access
+   to filesystem of the remote machine running the kernel. If you need shared
+   directories, set up ``sshfs`` between your machines.
+
+.. note::
+
+   Version 0.3 and later of this package depend on the split Jupyter and
+   IPython versions when installing with pip. If you are upgrading
    from an older version of IPython, Jupyter will probably migrate your
    existing kernels (to ``~/.local/share/jupyter/kernels/``), but not
    profiles. If you need to stick with IPython 3 series, use an older
@@ -31,45 +40,57 @@ to the remote machines is also required.
 
 .. code:: shell
 
-    # Install the module ('python setup.py install' also works)
+   # Install the module ('python setup.py install' also works)
 
-    pip install remote_ikernel
-
-.. code:: shell
-
-    # Set up the kernels you'd like to use
-
-    remote_ikernel manage
+   pip install remote_ikernel
 
 .. code:: shell
 
-    # Add a new kernel running through GrideEngine
+   # Set up the kernels you'd like to use
 
-    remote_ikernel manage --add \
-        --kernel_cmd="ipython kernel -f {connection_file}" \
-        --name="Python 2.7" --cpus=2 --pe=smp --interface=sge
+   remote_ikernel manage
 
 .. code:: shell
 
-    # Add an SSH connection to a remote machine running IJulia
+   # Add a new kernel running through GrideEngine
 
-    remote_ikernel manage --add \
-        --kernel_cmd="/home/me/julia-79599ada44/bin/julia -i -F /home/me/.julia/v0.3/IJulia/src/kernel.jl {connection_file}" \
-        --name="IJulia 0.3.8" --interface=ssh \
-        --host=me@remote.machine --workdir='/home/me/Workdir' --language=julia
+   remote_ikernel manage --add \
+      --kernel_cmd="ipython kernel -f {connection_file}" \
+      --name="Python 2.7" --cpus=2 --pe=smp --interface=sge
 
 .. code:: shell
 
-    # Set up kernels for your local virtual environments that can be run
-    # from a single notebook server.
+   # Add an SSH connection to a remote machine running IJulia
 
-    remote_ikernel manage --add \
-        --kernel_cmd="/home/me/Virtualenvs/dev/bin/ipython kernel -f {connection_file}" \
-        --name="Python 2 (venv:dev)" --interface=local
+   remote_ikernel manage --add \
+      --kernel_cmd="/home/me/julia-79599ada44/bin/julia -i -F /home/me/.julia/v0.3/IJulia/src/kernel.jl {connection_file}" \
+      --name="IJulia 0.3.8" --interface=ssh \
+      --host=me@remote.machine --workdir='/home/me/Workdir' --language=julia
+
+.. code:: shell
+
+   # Set up kernels for your local virtual environments that can be run
+   # from a single notebook server.
+
+   remote_ikernel manage --add \
+      --kernel_cmd="/home/me/Virtualenvs/dev/bin/ipython kernel -f {connection_file}" \
+      --name="Python 2 (venv:dev)" --interface=local
+
+.. code:: shell
+
+   # NEW!!
+   # Connect to a SLURM cluster through a gateway machine (to get into a
+   # local network) and cluster frontend machine (where the sqsub runs from).
+
+   remote_ikernel manage --add \
+      --kernel_cmd="ipython kernel -f {connection_file}" \
+      --name="Python 2.7" --cpus=4 --interface=slurm \
+      --tunnel-hosts gateway.machine cluster.frontend
 
 
 The kernel spec files will be installed so that the new kernel appears in
-the drop-down list in the notebook.
+the drop-down list in the notebook. ``remote_ikernel manage`` also has options
+to show and delete existing kernels.
 
 .. warning::
    ``IJulia`` kernels don't seem to close properly, so you may have julia
@@ -77,6 +98,13 @@ the drop-down list in the notebook.
    ``~/.julia/v0.3/IJulia/src/handlers.jl`` so that ``shutdown_request``
    calls ``run(`kill $(getpid())`)`` instaed of ``exit()``.
 
+
+Changes for v0.4
+================
+
+  * Option ``--tunnel-hosts``. When given, the software will try to create
+    an ssh tunnel through all the hosts before starting the final connection.
+    Allows using batch queues on remote systems.
 
 Changes for v0.3
 ================
