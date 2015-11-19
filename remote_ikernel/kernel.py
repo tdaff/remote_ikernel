@@ -76,6 +76,22 @@ def _setup_logging(verbose):
     return log
 
 
+def check_password(connection):
+    """
+    Check to see if a newly spawned process requires a password and retrieve
+    it from the user if it does. Send the password to the process and
+    check repeatedly for more passwords.
+
+    Parameters
+    ----------
+    connection : pexpect.spawn
+        The connection to check. Requires an expect and sendline method.
+
+    """
+    # FIXME: Not Implemented yet!
+    pass
+
+
 class RemoteIKernel(object):
     """
     Configurable remote IPython kernel than runs on a node on a cluster
@@ -143,6 +159,7 @@ class RemoteIKernel(object):
         """
         # TODO: does this need to be more than several ssh commands?
         self._spawn(self.tunnel_hosts_cmd)
+        check_password(self.connection)
 
     def launch_local(self):
         """
@@ -173,6 +190,7 @@ class RemoteIKernel(object):
             args=launch_args, host=self.host)
         self.log.debug("Login command: '{0}'.".format(login_cmd))
         self._spawn(login_cmd)
+        check_password(self.connection)
 
     def launch_pbs(self):
         """
@@ -320,24 +338,27 @@ class RemoteIKernel(object):
         pexpect.spawn('{pre} ssh -o StrictHostKeyChecking=no '
                       '{host}'.format(pre=pre, host=self.host).strip()).sendline('exit')
 
-        tunnelled_ports = []
-        for port_name in PORT_NAMES:
-            port = self.connection_info[port_name]
-            tunnel = pexpect.spawn(self.tunnel_cmd.format(port=port))
-            tunnelled_ports.append("{0}".format(port))
-            self.tunnels[port] = tunnel
+        # connection info should have the ports being used
+        tunnel_command = self.tunnel_cmd.format(**self.connection_info)
+        tunnel = pexpect.spawn(tunnel_command)
+        check_password(tunnel)
+        # TODO: check for password
+
         self.log.info("Setting up tunnels on ports: {0}.".format(
-            ", ".join(tunnelled_ports)))
+            ", ".join(["{0}".format(self.connection_info[port_name])
+                       for port_name in PORT_NAMES])))
+        self.log.debug("Tunnel command: {0}.".format(tunnel_command))
+
+        # Store the tunnel
+        self.tunnels['tunnel'] = tunnel
 
     def check_tunnels(self):
         """
         Check the PID of tunnels and restart any that have died.
         """
-        for port, tunnel in self.tunnels.items():
-            if not tunnel.isalive():
-                self.tunnels[port] = pexpect.spawn(
-                    self.tunnel_cmd.format(port=port))
-                self.log.debug("Restarted tunnel on port {0}".format(port))
+        if not self.tunnels['tunnel'].isalive():
+            self.log.debug("Restarting ssh tunnels.")
+            self.tunnel_connection()
 
     def keep_alive(self, timeout=5):
         """
@@ -431,20 +452,22 @@ class RemoteIKernel(object):
         if hasattr(self.host, 'decode'):
             self.host = self.host.decode('utf-8')
 
+        # One connection can tunnel all the ports
+        ports_str = " ".join(["-L 127.0.0.1:{{{port}}}:127.0.0.1:{{{port}}}"
+                               "".format(port=port) for port in PORT_NAMES])
+
         # Add all the gateway machines as an ssh chain
         pre_ssh = []
         for pre_host in self.tunnel_hosts or []:
             if ':' in pre_host:
                 # Split the host:port and insert into tunnel command
                 pre_ssh.append(
-                    "ssh -p {1} -S none "
-                    "-L 127.0.0.1:{{port}}:127.0.0.1:{{port}} "
-                    "{1}".format(pre_host.split(':')))
+                    "ssh -p {1} -S none {ports_str} {1}".format(
+                        pre_host.split(':'), ports_str=ports_str))
             else:
                 pre_ssh.append(
-                    "ssh -S none "
-                    "-L 127.0.0.1:{{port}}:127.0.0.1:{{port}} "
-                    "{0}".format(pre_host))
+                    "ssh -S none {ports_str} {0}".format(
+                        pre_host, ports_str=ports_str))
 
         if ':' in self.host:
             host, host_port = self.host.split(":")
@@ -457,9 +480,8 @@ class RemoteIKernel(object):
         # interval
         # .strip() to prevent leading spaces
         tunnel_cmd = ((" ".join(pre_ssh) + " " +
-                       "{ssh} -S none "
-                       "-L 127.0.0.1:{{port}}:127.0.0.1:{{port}} "
-                       "{host} sleep 600".format(ssh=ssh, host=host)).strip())
+                       "{ssh} -S none {ports_str} {host} sleep 600".format(
+                           ssh=ssh, host=host, ports_str=ports_str)).strip())
 
         self.log.debug("Tunnel command: {0}".format(tunnel_cmd))
         return tunnel_cmd
