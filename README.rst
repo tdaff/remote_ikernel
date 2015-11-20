@@ -105,6 +105,9 @@ Changes for v0.4
   * Option ``--tunnel-hosts``. When given, the software will try to create
     an ssh tunnel through all the hosts before starting the final connection.
     Allows using batch queues on remote systems.
+  * Preliminary support for dealing with passwords. If a program is defined
+    in the environment variable ``SSH_ASKPASS`` it will be used
+    to ask the user for a password.
 
 Changes for v0.3
 ================

@@ -11,6 +11,8 @@ import argparse
 import json
 import logging
 import os
+import re
+import subprocess
 import time
 
 import pexpect
@@ -76,6 +78,31 @@ def _setup_logging(verbose):
     return log
 
 
+def get_password(prompt):
+    """
+    Interact with the user and ask for a password.
+
+    Parameters
+    ----------
+    prompt : str
+        Text to show the user when asking for a password.
+
+    Returns
+    -------
+    password : str
+        The text input by the user.
+
+    """
+
+    if 'SSH_ASKPASS' in os.environ:
+        password = subprocess.check_output([os.environ['SSH_ASKPASS'],
+                                            prompt])
+    else:
+        raise RuntimeError("Unable to get password, try setting SSH_ASKPASS")
+
+    return password
+
+
 def check_password(connection):
     """
     Check to see if a newly spawned process requires a password and retrieve
@@ -88,8 +115,29 @@ def check_password(connection):
         The connection to check. Requires an expect and sendline method.
 
     """
-    # FIXME: Not Implemented yet!
-    pass
+    # This will loop until no more passwords are encountered
+    while True:
+        try:
+            # Return all output as soon as anything arrives.
+            # Assume that immediate output includes the
+            # request for a password, or goes straight to
+            # a prompt.
+            text = connection.read_nonblocking(99999)
+        except pexpect.TIMEOUT:
+            # Nothing more to read from the output
+            return
+
+        re_passphrase = re.search('Enter passphrase .*:', text)
+        re_password = re.search('.*@.* password:', text)
+        if re_passphrase:
+            passphrase = get_password(re_passphrase.group())
+            connection.sendline(passphrase)
+        elif re_password:
+            password = get_password(re_password.group())
+            connection.sendline(password)
+        else:
+            # No more passwords or passphrases requested
+            return
 
 
 class RemoteIKernel(object):
@@ -342,7 +390,6 @@ class RemoteIKernel(object):
         tunnel_command = self.tunnel_cmd.format(**self.connection_info)
         tunnel = pexpect.spawn(tunnel_command)
         check_password(tunnel)
-        # TODO: check for password
 
         self.log.info("Setting up tunnels on ports: {0}.".format(
             ", ".join(["{0}".format(self.connection_info[port_name])
