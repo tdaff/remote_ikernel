@@ -1,5 +1,5 @@
 """
-compat.py
+compat.py.
 
 Compatibility layer for transitions from IPython 3.0 to
 Jupyter structure. Will attempt to import Jupyter versions
@@ -11,8 +11,9 @@ Provides the following modules:
     tempdir    -> {tempfile,IPython.utils.tempdir}
 
 """
+import tempfile as tempdir
 
-__all__ = ['kernelspec', 'tempdir']
+__all__ = ('kernelspec', 'tempdir')
 
 # kernelspec is moved in jupyter
 try:
@@ -22,7 +23,7 @@ except ImportError:
 
 # This is a module copied from Python 3.2, so will exist
 # in 3.2 onwards
-import tempfile as tempdir
+
 # Otherwise it might be in genutils, but that will be dissolved
 if not hasattr(tempdir, 'TemporaryDirectory'):
     try:
