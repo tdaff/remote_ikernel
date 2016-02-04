@@ -289,13 +289,13 @@ class RemoteIKernel(object):
             args_string = self.launch_args
         else:
             args_string = ''
-        sge_cmd = 'qlogin -now n {0} -N {1} {2}'.format(pe_string, job_name,
-                                                        args_string)
+        sge_cmd = 'qlogin -verbose -now n {0} -N {1} {2}'.format(
+                pe_string, job_name, args_string)
         self.log.debug("Gridengine command: '{0}'.".format(sge_cmd))
         # Will wait in the queue for up to 10 mins
         qlogin = self._spawn(sge_cmd)
         # Hopefully this text is universal?
-        qlogin.expect('Establishing builtin session to host (.*) ...')
+        qlogin.expect('Establishing .* session to host (.*) ...')
 
         node = qlogin.match.groups()[0]
         self.log.info("Established session on node: {0}.".format(node))
