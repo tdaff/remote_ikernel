@@ -509,7 +509,7 @@ class RemoteIKernel(object):
             if ':' in pre_host:
                 # Split the host:port and insert into tunnel command
                 pre_ssh.append(
-                    "ssh -p {0[1]} -S none {ports_str} {0[1]}".format(
+                    "ssh -p {0[1]} -S none {ports_str} {0[0]}".format(
                         pre_host.split(':'), ports_str=ports_str))
             else:
                 pre_ssh.append(
