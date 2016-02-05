@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 """
+kernel.py
 
 Run standard IPython/Jupyter kernels on remote machines using
 job schedulers.
