@@ -73,7 +73,8 @@ def show_kernel(kernel_name):
 
 def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
                system=False, workdir=None, host=None, precmd=None,
-               launch_args=None, tunnel_hosts=None, verbose=False):
+               launch_args=None, tunnel_hosts=None, verbose=False,
+               launch_cmd=None):
     """
     Add a kernel. Generates a kernel.json and installs it for the system or
     user.
@@ -112,6 +113,11 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
 
     display_name.append(name)
     kernel_name.append(re.sub(r'\W', '', name).lower())
+
+    if launch_cmd is not None:
+        argv.extend(['--launch-cmd', launch_cmd])
+        display_name.append('({0})'.format(launch_cmd))
+        kernel_name.append(re.sub(r'\W', '', launch_cmd).lower())
 
     if pe is not None:
         argv.extend(['--pe', pe])
@@ -242,6 +248,10 @@ def manage():
     parser.add_argument('--remote-precmd', help="Command to execute on the "
                         "remote host before launching the kernel, but after "
                         "changing to the working directory.")
+    parser.add_argument('--launch-cmd', help="Override the command used to "
+                        "launch the remote session (e.g. 'qrsh' to replace "
+                        "'qlogin') or provide the full path for the "
+                        "executable if it is not in $PATH.")
     parser.add_argument('--remote-launch-args', help="Arguments to add to the "
                         "command that launches the remote session, i.e. the "
                         "ssh or qlogin command, such as '-l h_rt=24:00:00' to "
@@ -264,7 +274,7 @@ def manage():
                                  args.cpus, args.pe, args.language, args.system,
                                  args.workdir, args.host, args.remote_precmd,
                                  args.remote_launch_args, args.tunnel_hosts,
-                                 args.verbose)
+                                 args.verbose, args.launch_cmd)
         print("Installed kernel {0}.".format(kernel_name))
     elif args.delete:
         if args.delete in existing_kernels:

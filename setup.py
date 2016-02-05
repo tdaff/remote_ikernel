@@ -6,7 +6,7 @@ except ImportError:
     from distutils.core import setup
 
 setup(name='remote_ikernel',
-      version='0.4.1',
+      version='0.4.2',
       description='Running IPython kernels through batch queues',
       long_description=open('README.rst').read(),
       author='Tom Daff',

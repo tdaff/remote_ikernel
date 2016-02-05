@@ -150,7 +150,7 @@ class RemoteIKernel(object):
     def __init__(self, connection_info=None, interface='sge', cpus=1, pe='smp',
                  kernel_cmd='ipython kernel', workdir=None, tunnel=True,
                  host=None, precmd=None, launch_args=None, verbose=False,
-                 tunnel_hosts=None):
+                 tunnel_hosts=None, launch_cmd=None):
         """
         Initialise a kernel on a remote machine and start tunnels.
 
@@ -172,6 +172,7 @@ class RemoteIKernel(object):
         self.tunnel = tunnel
         self.tunnels = {}  # Processes running the SSH tunnels
         self.precmd = precmd
+        self.launch_cmd = launch_cmd
         self.launch_args = launch_args
         self.cwd = os.getcwd()  # Launch directory may be needed if no workdir
 
@@ -200,6 +201,19 @@ class RemoteIKernel(object):
             if self.tunnel:
                 self.tunnel_connection()
 
+    def get_cmd(self, default):
+        """
+        Check if cmd has been overridden and return that, otherwise use the
+        default.
+        """
+        if self.launch_cmd is not None:
+            self.log.info("Overriding default '{0}' with '{1}'.".format(
+                    default, self.launch_cmd))
+            return self.launch_cmd
+        else:
+            self.log.info("Default launch command: '{0}'.".format(default))
+            return default
+
     def launch_tunnel_hosts(self):
         """
         Build a chain of hosts to tunnel through and start an ssh
@@ -216,9 +230,10 @@ class RemoteIKernel(object):
         """
         self.log.info("Launching local kernel.")
         if self.launch_args:
-            bash = '/bin/bash {0}'.format(self.launch_args)
+            bash = '{bash} {args}'.format(bash=self.get_cmd('/bin/bash'),
+                                          args=self.launch_args)
         else:
-            bash = '/bin/bash'
+            bash = self.get_cmd('/bin/bash')
         self._spawn(bash)
         # Don't try and start tunnels to the same machine. Causes issues.
         self.tunnel = False
@@ -255,8 +270,9 @@ class RemoteIKernel(object):
             args_string = self.launch_args
         else:
             args_string = ''
-        pbs_cmd = 'qsub -I {0} -N {1} {2}'.format(cpu_string, job_name,
-                                                  args_string)
+        pbs_cmd = '{qsub} -I {cpus} -N {name} {args}'.format(
+                cpus=cpu_string, name=job_name, args=args_string,
+                qsub=self.get_cmd('qsub'))
         self.log.debug("PBS command: '{0}'.".format(pbs_cmd))
         # Will wait in the queue for up to 10 mins
         qsub_i = self._spawn(pbs_cmd)
@@ -289,8 +305,9 @@ class RemoteIKernel(object):
             args_string = self.launch_args
         else:
             args_string = ''
-        sge_cmd = 'qlogin -verbose -now n {0} -N {1} {2}'.format(
-                pe_string, job_name, args_string)
+        sge_cmd = '{qlogin} -verbose -now n {pe} -N {name} {args}'.format(
+                qlogin=self.get_cmd('qlogin'), pe=pe_string, name=job_name,
+                args=args_string)
         self.log.debug("Gridengine command: '{0}'.".format(sge_cmd))
         # Will wait in the queue for up to 10 mins
         qlogin = self._spawn(sge_cmd)
@@ -318,8 +335,9 @@ class RemoteIKernel(object):
             launch_args = ''
         # -u disables buffering, -i is interactive, -v so we know the node
         # tasks must be before the bash!
-        srun_cmd = 'srun  {tasks} -J {job_name} {args} -v -u bash -i'.format(
-            tasks=tasks, job_name=job_name, args=launch_args)
+        srun_cmd = '{srun}  {tasks} -J {job_name} {args} -v -u bash -i'.format(
+            srun=self.get_cmd('srun'), tasks=tasks, job_name=job_name,
+            args=launch_args)
         self.log.info("SLURM command: '{0}'.".format(srun_cmd))
         srun = self._spawn(srun_cmd)
         # Hopefully this text is universal?
@@ -403,9 +421,10 @@ class RemoteIKernel(object):
         """
         Check the PID of tunnels and restart any that have died.
         """
-        if not self.tunnels['tunnel'].isalive():
-            self.log.debug("Restarting ssh tunnels.")
-            self.tunnel_connection()
+        if 'tunnel' in self.tunnels:
+            if not self.tunnels['tunnel'].isalive():
+                self.log.debug("Restarting ssh tunnels.")
+                self.tunnel_connection()
 
     def keep_alive(self, timeout=5):
         """
@@ -554,6 +573,7 @@ def start_remote_kernel():
     parser.add_argument('--launch-args')
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--tunnel-hosts', nargs='+')
+    parser.add_argument('--launch-cmd')
     args = parser.parse_args()
 
     kernel = RemoteIKernel(connection_info=args.connection_info,
@@ -561,5 +581,6 @@ def start_remote_kernel():
                            kernel_cmd=args.kernel_cmd, workdir=args.workdir,
                            host=args.host, precmd=args.precmd,
                            launch_args=args.launch_args, verbose=args.verbose,
-                           tunnel_hosts=args.tunnel_hosts)
+                           tunnel_hosts=args.tunnel_hosts,
+                           launch_cmd=args.launch_cmd)
     kernel.keep_alive()
