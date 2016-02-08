@@ -7,6 +7,7 @@ Run ``remote_ikernel manage`` to see a list of commands.
 """
 
 from __future__ import print_function
+from __future__ import unicode_literals
 
 import argparse
 import getpass
@@ -196,7 +197,7 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
         ks.install_kernel_spec(temp_dir, kernel_name,
                                user=username, replace=True)
 
-    return kernel_name
+    return kernel_name, " ".join(display_name)
 
 
 def manage():
@@ -224,12 +225,13 @@ def manage():
     parser = argparse.ArgumentParser(
         prog='%prog manage', description="\n".join(description),
         formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('--show', '-s', help="Print the contents of the "
-                        "kernel.")
+    parser.add_argument('--show', '-s', nargs='*', help="Print the contents "
+                        "of the "
+                        "kernel. Leave ")
     parser.add_argument('--add', '-a', action="store_true", help="Add a new "
                         "kernel according to other commandline options.")
-    parser.add_argument('--delete', '-d', help="Remove the kernel and delete "
-                        "the associated kernel.json.")
+    parser.add_argument('--delete', '-d', nargs='+', help="Remove the kernel "
+                        "and delete the associated kernel.json.")
     parser.add_argument('--kernel_cmd', '-k', help="Kernel command "
                         "to install.")
     parser.add_argument('--name', '-n', help="Name to identify the kernel,"
@@ -279,23 +281,36 @@ def manage():
     sys.argv = raw_args
 
     if args.add:
-        kernel_name = add_kernel(args.interface, args.name, args.kernel_cmd,
-                                 args.cpus, args.pe, args.language, args.system,
-                                 args.workdir, args.host, args.remote_precmd,
-                                 args.remote_launch_args, args.tunnel_hosts,
-                                 args.verbose, args.launch_cmd)
-        print("Installed kernel {0}.".format(kernel_name))
+        kernel_name, display_name = add_kernel(
+                args.interface, args.name, args.kernel_cmd, args.cpus, args.pe,
+                args.language, args.system, args.workdir, args.host,
+                args.remote_precmd, args.remote_launch_args, args.tunnel_hosts,
+                args.verbose, args.launch_cmd)
+        print("Added kernel ['{0}']: {1}.".format(kernel_name, display_name))
     elif args.delete:
-        if args.delete in existing_kernels:
-            delete_kernel(args.delete)
-        else:
-            print("Can't delete {0}".format(args.delete))
+        undeleted = []
+        for to_delete in args.delete:
+            if to_delete in existing_kernels:
+                delete_kernel(to_delete)
+                print("Removed kernel ['{0}']: {1}.".format(
+                    to_delete, existing_kernels[to_delete].display_name))
+            else:
+                undeleted.append(to_delete)
+        if undeleted:
+            print("Can't delete: {0}.".format(", ".join(undeleted)))
             print("\n".join(description[2:]))
-    elif args.show:
-        if args.show in existing_kernels:
-            show_kernel(args.show)
-        else:
-            print("Kernel {0} doesn't exist".format(args.show))
+            raise SystemExit(1)
+    elif args.show is not None:
+        unshowable = []
+        # Show all if none are specified
+        for to_show in args.show or existing_kernels:
+            if to_show in existing_kernels:
+                show_kernel(to_show)
+            else:
+                unshowable.append(to_show)
+        if unshowable:
+            print("Could not find: {0}.".format(", ".join(unshowable)))
             print("\n".join(description[2:]))
+            raise SystemExit(1)
     else:
         parser.print_help()
