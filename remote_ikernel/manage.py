@@ -278,7 +278,7 @@ def manage():
                         '(version {0}).'.format(__version__))
 
     # Remove 'manage' from a copy of the arguments to parse
-    raw_args = sys.argv[:]
+    raw_args = sys.argv[1:]
     raw_args.remove('manage')
     args = parser.parse_args(raw_args)
 
