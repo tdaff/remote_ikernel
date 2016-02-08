@@ -19,7 +19,7 @@ from os import path
 from subprocess import list2cmdline
 
 # How we identify kernels that rik will manage
-from remote_ikernel import RIK_PREFIX
+from remote_ikernel import RIK_PREFIX, __version__
 # These go through a compatibility layer to work with IPython and Jupyter
 from remote_ikernel.compat import kernelspec as ks
 from remote_ikernel.compat import tempdir
@@ -273,12 +273,14 @@ def manage():
                         "interface. For non standard ports use host:port.")
     parser.add_argument('--verbose', '-v', action='store_true', help="Running "
                         "kernel will produce verbose debugging on the console.")
+    parser.add_argument('--version', '-V', action='version',
+                        version='Remote Jupyter kernel manager '
+                        '(version {0}).'.format(__version__))
 
-    # Temporarily remove 'manage' from the arguments
+    # Remove 'manage' from a copy of the arguments to parse
     raw_args = sys.argv[:]
-    sys.argv.remove('manage')
-    args = parser.parse_args()
-    sys.argv = raw_args
+    raw_args.remove('manage')
+    args = parser.parse_args(raw_args)
 
     if args.add:
         kernel_name, display_name = add_kernel(

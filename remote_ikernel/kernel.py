@@ -593,7 +593,7 @@ def start_remote_kernel():
     """
     # These will not face a user since they are interpreting the command from
     # kernel the kernel.json
-    description = "This is the kernel launcher, did you mean '%prog manage'"
+    description = "This is the kernel launcher! Try '%(prog)s manage'..."
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('connection_info')
     parser.add_argument('--interface', default='local')
@@ -608,6 +608,10 @@ def start_remote_kernel():
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--tunnel-hosts', nargs='+')
     parser.add_argument('--launch-cmd')
+    parser.add_argument('--version', '-V', action='version', version="Remote "
+                        "Jupyter kernel launcher (version {0}).\n\n"
+                        "Use the '%(prog)s manage' subcommand for managing "
+                        "kernels.".format(__version__))
     args = parser.parse_args()
 
     kernel = RemoteIKernel(connection_info=args.connection_info,
