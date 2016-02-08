@@ -110,6 +110,7 @@ Changes for v0.4
     to ask the user for a password.
   * ``--launch-cmd`` can be used to override the command used to launch the
     interactive jobs on the cluster, e.g. to replace ``qlogin`` with ``qrsh``.
+  * Platform LSF support.
 
 Changes for v0.3
 ================

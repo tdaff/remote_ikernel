@@ -189,10 +189,14 @@ class RemoteIKernel(object):
             self.launch_pbs()
         elif self.interface == 'sge':
             self.launch_sge()
-        elif self.interface == 'ssh':
-            self.launch_ssh()
+        elif self.interface == 'sge_qrsh':
+            self.launch_sge(qlogin='qrsh')
         elif self.interface == 'slurm':
             self.launch_slurm()
+        elif self.interface == 'lsf':
+            self.launch_lsf()
+        elif self.interface == 'ssh':
+            self.launch_ssh()
         else:
             raise ValueError("Unknown interface {0}".format(interface))
 
@@ -252,7 +256,7 @@ class RemoteIKernel(object):
             launch_args = ''
         login_cmd = 'ssh -o StrictHostKeyChecking=no {args} {host}'.format(
             args=launch_args, host=self.host)
-        self.log.debug("Login command: '{0}'.".format(login_cmd))
+        self.log.info("Login command: '{0}'.".format(login_cmd))
         self._spawn(login_cmd)
         check_password(self.connection)
 
@@ -274,7 +278,7 @@ class RemoteIKernel(object):
         pbs_cmd = '{qsub} -I {cpus} -N {name} {args}'.format(
                 cpus=cpu_string, name=job_name, args=args_string,
                 qsub=self.get_cmd('qsub'))
-        self.log.debug("PBS command: '{0}'.".format(pbs_cmd))
+        self.log.info("PBS command: '{0}'.".format(pbs_cmd))
         # Will wait in the queue for up to 10 mins
         qsub_i = self._spawn(pbs_cmd)
         # Hopefully this text is universal? Job started...
@@ -291,10 +295,11 @@ class RemoteIKernel(object):
         self.log.info("Established session on node: {0}.".format(node))
         self.host = node
 
-    def launch_sge(self):
+    def launch_sge(self, qlogin='qlogin'):
         """
         Start a kernel through the gridengine 'qlogin' command. The connection
-        will use the object's connection_info and kernel_command.
+        will use the object's connection_info and kernel_command. 'qlogin' can
+        also be replaced with 'qrsh' on some systems.
         """
         self.log.info("Launching kernel through GridEngine.")
         job_name = 'remote_ikernel'
@@ -307,9 +312,9 @@ class RemoteIKernel(object):
         else:
             args_string = ''
         sge_cmd = '{qlogin} -verbose -now n {pe} -N {name} {args}'.format(
-                qlogin=self.get_cmd('qlogin'), pe=pe_string, name=job_name,
+                qlogin=self.get_cmd(qlogin), pe=pe_string, name=job_name,
                 args=args_string)
-        self.log.debug("Gridengine command: '{0}'.".format(sge_cmd))
+        self.log.info("Gridengine command: '{0}'.".format(sge_cmd))
         # Will wait in the queue for up to 10 mins
         qlogin = self._spawn(sge_cmd)
         # Hopefully this text is universal?
@@ -345,6 +350,34 @@ class RemoteIKernel(object):
         srun.expect('srun: Node (.*), .* tasks started')
 
         node = srun.match.groups()[0]
+        self.log.info("Established session on node: {0}.".format(node))
+        self.host = node
+
+    def launch_lsf(self):
+        """
+        Start a kernel through the Platform LSF 'bsub' command in interactive
+        mode. Bind the spawned pexpect to the class to interact with it.
+        """
+        self.log.info("Launching kernel through Platform LSF.")
+        job_name = 'remote_ikernel'
+        if self.cpus > 1:
+            tasks = "-n {cpus}".format(cpus=self.cpus)
+        else:
+            tasks = ""
+        if self.launch_args:
+            launch_args = self.launch_args
+        else:
+            launch_args = ''
+        # -Is is interactive shell mode
+        bsub_cmd = '{bsub} -Is /bin/bash {tasks} -J {job_name} {args}'.format(
+            bsub=self.get_cmd('bsub'), tasks=tasks, job_name=job_name,
+            args=launch_args)
+        self.log.info("LSF command: '{0}'.".format(bsub_cmd))
+        bsub = self._spawn(bsub_cmd)
+        # Hopefully this text is universal?
+        bsub.expect('<<Starting on (.*)>>')
+
+        node = bsub.match.groups()[0]
         self.log.info("Established session on node: {0}.".format(node))
         self.host = node
 

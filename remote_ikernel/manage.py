@@ -95,6 +95,18 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
         argv.extend(['--interface', 'sge'])
         kernel_name.append('sge')
         display_name.append("GridEngine")
+    elif interface == 'sge_qrsh':
+        argv.extend(['--interface', 'sge_qrsh'])
+        kernel_name.append('sge_qrsh')
+        display_name.append("GridEngine (qrsh)")
+    elif interface == 'slurm':
+        argv.extend(['--interface', 'slurm'])
+        kernel_name.append('slurm')
+        display_name.append("SLURM")
+    elif interface == 'lsf':
+        argv.extend(['--interface', 'lsf'])
+        kernel_name.append('lsf')
+        display_name.append("Platform LSF")
     elif interface == 'ssh':
         if host is None:
             raise KeyError('A host is required for ssh.')
@@ -104,10 +116,6 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
         kernel_name.append(host)
         display_name.append("SSH")
         display_name.append(host)
-    elif interface == 'slurm':
-        argv.extend(['--interface', 'slurm'])
-        kernel_name.append('slurm')
-        display_name.append("SLURM")
     else:
         raise ValueError("Unknown interface {0}".format(interface))
 
@@ -236,7 +244,8 @@ def manage():
                         "running through an SSH connection. For non standard "
                         "ports use host:port.")
     parser.add_argument('--interface', '-i',
-                        choices=['local', 'ssh', 'pbs', 'sge', 'slurm'],
+                        choices=['local', 'ssh', 'pbs', 'sge', 'sge_qrsh',
+                                 'slurm', 'lsf'],
                         help="Specify how the remote kernel is launched.")
     parser.add_argument('--system', help="Install the kernel into the system "
                         "directory so that it is available for all users. "
