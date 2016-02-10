@@ -369,7 +369,7 @@ class RemoteIKernel(object):
         else:
             launch_args = ''
         # -Is is interactive shell mode
-        bsub_cmd = '{bsub} -Is /bin/bash {tasks} -J {job_name} {args}'.format(
+        bsub_cmd = '{bsub} {tasks} -J {job_name} {args} -Is /bin/bash'.format(
             bsub=self.get_cmd('bsub'), tasks=tasks, job_name=job_name,
             args=launch_args)
         self.log.info("LSF command: '{0}'.".format(bsub_cmd))
