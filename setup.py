@@ -16,6 +16,7 @@ setup(name='remote_ikernel',
       packages=['remote_ikernel'],
       scripts=['bin/remote_ikernel'],
       install_requires=['notebook', 'pexpect', 'tornado'],
+      tests_requires=['pytest', 'scripttest'],
       classifiers=[
           'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 3',

@@ -24,6 +24,28 @@ from remote_ikernel import RIK_PREFIX, __version__
 from remote_ikernel.compat import kernelspec as ks
 from remote_ikernel.compat import tempdir
 
+# When Python 2 pipes into something else, there is no encoding
+# set. Assume that it is utf-8 so that scripttest works as expected.
+# If LANG=C, unicode characters will break output, but
+# https://bugs.python.org/issue19846 says it should not be an issue
+# on modern systems. And you can't put unicode in with LANG=C so how can
+# you expect unicode out?
+if sys.stdout.encoding is None:
+    # no recursive
+    _print = print
+
+    def print(x): _print(x.encode('UTF-8'))
+
+    # From http://bugs.python.org/issue9779
+    def _print_message(self, message, file=None):
+        """Output message to file, encoded as UTF-8 """
+        if message:
+            if file is None:
+                file = sys.stderr
+            file.write(message.encode('UTF-8'))
+
+    argparse.ArgumentParser._print_message = _print_message
+
 
 def delete_kernel(kernel_name):
     """
@@ -64,12 +86,14 @@ def show_kernel(kernel_name):
         kernel_json = json.load(kernel_file)
 
     # Manually format the json to put each key: value on a single line
-    print("  * Kernel found in: {0}".format(spec.resource_dir))
-    print("  * Name: {0}".format(spec.display_name))
-    print("  * Kernel command: {0}".format(list2cmdline(spec.argv)))
-    print("  * remote_ikernel command: {0}".format(list2cmdline(
+    print("['{}']".format(kernel_name))
+    print("|  * Kernel found in: {0}".format(spec.resource_dir))
+    print("|  * Name: {0}".format(spec.display_name))
+    print("|  * Kernel command: {0}".format(list2cmdline(spec.argv)))
+    print("|  * remote_ikernel command: {0}".format(list2cmdline(
         kernel_json['remote_ikernel_argv'])))
-    print("  * Raw json: {0}".format(json.dumps(kernel_json, indent=2)))
+    print("|  * Raw json: {0}".format(json.dumps(kernel_json, indent=2)))
+    print("")
 
 
 def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
@@ -117,9 +141,13 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
         kernel_name.append(host)
         display_name.append("SSH")
         display_name.append(host)
+    elif interface is None:
+        raise ValueError("interface must be specified")
     else:
         raise ValueError("Unknown interface {0}".format(interface))
 
+    if name is None:
+        raise ValueError("name is required for kernel")
     display_name.append(name)
     kernel_name.append(re.sub(r'\W', '', name).lower())
 
@@ -157,6 +185,8 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
         argv.extend(['--verbose'])
 
     # protect the {connection_file} part of the kernel command
+    if kernel_cmd is None:
+        raise ValueError("kernel_cmd is required")
     kernel_cmd = kernel_cmd.replace('{connection_file}',
                                     '{host_connection_file}')
     argv.extend(['--kernel_cmd', kernel_cmd])
@@ -277,8 +307,16 @@ def manage():
                         version='Remote Jupyter kernel manager '
                         '(version {0}).'.format(__version__))
 
-    # Remove 'manage' from a copy of the arguments to parse
+    # Work on a copy so we don't mangle sys.argv when it is copied into
+    # the kernel json
     raw_args = sys.argv[1:]
+    # give argparse something unicode to deal with for PY2
+    # otherwise, ignore if there is nothing to 'decode'
+    try:
+        raw_args = [x.decode('UTF-8') for x in sys.argv[1:]]
+    except AttributeError:
+        pass
+    # Remove 'manage' to parse manage specific options
     raw_args.remove('manage')
     args = parser.parse_args(raw_args)
 
@@ -295,7 +333,7 @@ def manage():
             if to_delete in existing_kernels:
                 delete_kernel(to_delete)
                 print("Removed kernel ['{0}']: {1}.".format(
-                    to_delete, existing_kernels[to_delete].display_name))
+                      to_delete, existing_kernels[to_delete].display_name))
             else:
                 undeleted.append(to_delete)
         if undeleted:

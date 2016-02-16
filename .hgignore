@@ -7,3 +7,6 @@ MANIFEST
 *.egg-info/
 *.egg
 .idea
+tests/test-output
+.tox
+.cache
