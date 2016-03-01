@@ -21,6 +21,13 @@ Install with ``pip install remote_ikernel``. Requires ``notebook`` (as part
 of Jupyter), version 4.0 or greater and ``pexpect``. Passwordless ``ssh``
 to the all the remote machines is also required (e.g. nodes on a cluster).
 
+.. warning::
+
+   ``remote_ikernel`` opens multiple connections across several machines
+   to tunnel communication ports. If you have concerns about security or
+   excessive use of resources, please consult your systems administrator
+   before using this software.
+
 .. note::
 
    When running kernels on remote machines, the notebooks themselves will
