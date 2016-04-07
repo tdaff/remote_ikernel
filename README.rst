@@ -19,7 +19,7 @@ different python implementations.
 
 Install with ``pip install remote_ikernel``. Requires ``notebook`` (as part
 of Jupyter), version 4.0 or greater and ``pexpect``. Passwordless ``ssh``
-to the all the remote machines is also required (e.g. nodes on a cluster).
+to the all the remote machines is also recommended (e.g. nodes on a cluster).
 
 .. warning::
 
@@ -85,7 +85,6 @@ to the all the remote machines is also required (e.g. nodes on a cluster).
 
 .. code:: shell
 
-   # NEW!!
    # Connect to a SLURM cluster through a gateway machine (to get into a
    # local network) and cluster frontend machine (where the sqsub runs from).
 
@@ -104,6 +103,28 @@ to show and delete existing kernels.
    processes lingering on your systems. To work around this edit the file
    ``~/.julia/v0.3/IJulia/src/handlers.jl`` so that ``shutdown_request``
    calls ``run(`kill $(getpid())`)`` instaed of ``exit()``.
+
+
+Connection multiplexing
+=======================
+
+When working with remote machines, each kernel creates two ``ssh``
+connections. If you would like to reduce that, you can set up automatic
+multiplexing of connections. For each machine, add a configuration to your
+``~/.ssh/config``:
+
+.. code::
+
+   Host myhost.ac.uk
+       ControlMaster auto
+       ControlPath ~/.ssh/%r@%h:%p
+       ControlPersist 1
+
+This will create a master connection that remains in the background when and
+multiplex everything through that. If you have multiple hops, this will need
+to be added for each hop. Note, for the security conscious, that idle kernels
+on multiplexed connections allow new ssh connections to be started without a
+password.
 
 
 Changes for v0.4
