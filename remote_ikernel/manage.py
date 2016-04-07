@@ -14,6 +14,7 @@ import getpass
 import json
 import os
 import re
+import shlex
 import sys
 from os import path
 from subprocess import list2cmdline
@@ -68,6 +69,47 @@ def delete_kernel(kernel_name):
     except OSError:
         # Non empty directory, just leave it
         pass
+
+
+def command_fix(kernel_command):
+    """
+    Check the command for anything that might cause upset when it gets run
+    by bash.
+
+    Current checks are:
+        IRkernel:main() needs escaping.
+        Warn for any brackets
+        Warn for unpaired quotes
+
+    Parameters
+    ----------
+    kernel_command : str
+        The kernel command that is run by bash.
+
+    Returns
+    -------
+    fixed_kernel_command : srt
+        The kernel command with any fixes applied.
+
+    """
+    # IRKernel:main() fix
+    # if not escaped or quoted then bash trips up on the brackets
+    if " IRkernel::main()" in kernel_command:
+        kernel_command = kernel_command.replace(" IRkernel::main()",
+                                                " 'IRkernel::main()'")
+        print("Escaping IRkernel::main().")
+
+    # Unescaped brackets
+    if (re.search(r"[^\\][()]", kernel_command) and not
+        re.search(r"[\'\"].*[^\\][()].*[\'\"]", kernel_command)):
+        print("Warning: possibly unescaped brackets in the kernel command.")
+
+    try:
+        shlex.split(kernel_command)
+    except ValueError:
+        print("Kernel command may be missing quotation marks.")
+
+    return kernel_command
 
 
 def show_kernel(kernel_name):
@@ -187,6 +229,7 @@ def add_kernel(interface, name, kernel_cmd, cpus=1, pe=None, language=None,
     # protect the {connection_file} part of the kernel command
     if kernel_cmd is None:
         raise ValueError("kernel_cmd is required")
+    kernel_cmd = command_fix(kernel_cmd)
     kernel_cmd = kernel_cmd.replace('{connection_file}',
                                     '{host_connection_file}')
     argv.extend(['--kernel_cmd', kernel_cmd])
