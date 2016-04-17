@@ -139,6 +139,7 @@ Changes for v0.4
   * ``--launch-cmd`` can be used to override the command used to launch the
     interactive jobs on the cluster, e.g. to replace ``qlogin`` with ``qrsh``.
   * Platform LSF support.
+  * The kernel json files are given unique names.
 
 Changes for v0.3
 ================

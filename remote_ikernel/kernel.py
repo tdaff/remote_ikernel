@@ -15,6 +15,7 @@ import os
 import re
 import subprocess
 import time
+import uuid
 
 import pexpect
 
@@ -22,9 +23,7 @@ from tornado.log import LogFormatter
 
 from remote_ikernel import RIK_PREFIX, __version__
 
-# Where remote system has a different filesystem, a temporary file is needed
-# to hold the json.
-TEMP_KERNEL_NAME = './{0}kernel.json'.format(RIK_PREFIX)
+
 # ALl the ports that need to be forwarded
 PORT_NAMES = ['hb_port', 'shell_port', 'iopub_port', 'stdin_port',
               'control_port']
@@ -141,6 +140,32 @@ def check_password(connection):
             return
 
 
+def extract_uuid(filename):
+    """
+    Given a filename containing a kernel, extract the uuid in
+    the kernel name.
+
+    Parameters
+    ----------
+    filename : str
+        The name of the kernel-...-json file with the connection info.
+
+    Returns
+    -------
+    uuid : str or None
+        The extracted uuid, or None if not found.
+    """
+
+    extracted = re.match(
+        '.*kernel-([0-9a-f]{8}-?[0-9a-f]{4}-?4[0-9a-f]{3}-'
+        '?[89ab][0-9a-f]{3}-?[0-9a-f]{12}).json',
+        filename)
+    if extracted is not None:
+        return uuid.UUID(extracted.group(1))
+    else:
+        return None
+
+
 class RemoteIKernel(object):
     """
     Configurable remote IPython kernel than runs on a node on a cluster
@@ -161,7 +186,12 @@ class RemoteIKernel(object):
         self.log.info("Remote kernel version: {0}.".format(__version__))
         self.log.info("File location: {0}.".format(__file__))
         # The connection info is provided by the notebook
-        self.connection_info = json.load(open(connection_info))
+        try:
+            self.connection_info = json.load(open(connection_info))
+        except FileNotFoundError:
+            # file not found, allowed during testing
+            if interface != 'test':
+                raise
         self.interface = interface
         self.cpus = cpus
         self.pe = pe
@@ -176,6 +206,8 @@ class RemoteIKernel(object):
         self.launch_cmd = launch_cmd
         self.launch_args = launch_args
         self.cwd = os.getcwd()  # Launch directory may be needed if no workdir
+        # Assign the parent uuid, or generate a new one
+        self.uuid = extract_uuid(connection_info) or uuid.uuid4()
 
         # Initiate an ssh tunnel through any tunnel hosts
         # this will start a pexpect, so we must check if
@@ -197,6 +229,9 @@ class RemoteIKernel(object):
             self.launch_lsf()
         elif self.interface == 'ssh':
             self.launch_ssh()
+        elif self.interface == 'test':
+            # don't start anything if testing
+            pass
         else:
             raise ValueError("Unknown interface {0}".format(interface))
 
@@ -386,6 +421,9 @@ class RemoteIKernel(object):
         Start the kernel on the remote machine.
         """
         conn = self.connection
+        # If the remote system has a different filesystem, a temporary
+        # file is needed to hold the json.
+        kernel_name = './{0}kernel-{1}.json'.format(RIK_PREFIX, self.uuid)
         self.log.info("Established connection; starting kernel.")
 
         # Use the specified working directory or try to change to the same
@@ -399,10 +437,10 @@ class RemoteIKernel(object):
 
         # Create a temporary file to store a copy of the connection information
         # Delete the file if it already exists
-        conn.sendline('rm -f {0}'.format(TEMP_KERNEL_NAME))
+        conn.sendline('rm -f {0}'.format(kernel_name))
         file_contents = json.dumps(self.connection_info)
         conn.sendline('echo \'{0}\' > {1}'.format(file_contents,
-                                                  TEMP_KERNEL_NAME))
+                                                  kernel_name))
 
         # Is this the best place for a pre-command? I guess people will just
         # have to deal with it. Pass it on as is.
@@ -411,7 +449,7 @@ class RemoteIKernel(object):
 
         # Init as a background process so we can delete the tempfile after
         kernel_init = '{kernel_cmd}'.format(kernel_cmd=self.kernel_cmd)
-        kernel_init = kernel_init.format(host_connection_file=TEMP_KERNEL_NAME,
+        kernel_init = kernel_init.format(host_connection_file=kernel_name,
                                          ci=self.connection_info)
         self.log.info("Running kernel command: '{0}'.".format(kernel_init))
         conn.sendline(kernel_init)
@@ -420,7 +458,7 @@ class RemoteIKernel(object):
         # transient file for once the process stops. Trying to do this
         # whilst simultaneously starting the kernel ended up deleting
         # the file before it was read.
-        conn.sendline('rm -f {0}'.format(TEMP_KERNEL_NAME))
+        conn.sendline('rm -f {0}'.format(kernel_name))
         conn.sendline('exit')
 
         # Could check this for errors?
@@ -554,7 +592,7 @@ class RemoteIKernel(object):
 
         # One connection can tunnel all the ports
         ports_str = " ".join(["-L 127.0.0.1:{{{port}}}:127.0.0.1:{{{port}}}"
-                               "".format(port=port) for port in PORT_NAMES])
+                              "".format(port=port) for port in PORT_NAMES])
 
         # Add all the gateway machines as an ssh chain
         pre_ssh = []
