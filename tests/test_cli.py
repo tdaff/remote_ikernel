@@ -8,6 +8,9 @@ commandline script.
 
 """
 
+import sys
+
+import pytest
 # pytest tries to include this if Test is kept in the name
 from scripttest import TestFileEnvironment as Env
 
@@ -22,7 +25,7 @@ def test_launcher_doing_nothing():
     assert result.returncode != 0
     # Help is useless, really
     result = env.run('remote_ikernel', '--help')
-    assert 'remote_ikernel manage' in result.stdout
+    assert 'usage: remote_ikernel' in result.stdout
 
 
 def test_launcher_version():
@@ -66,6 +69,8 @@ def test_minimum_args():
     assert 'Removed kernel' in result.stdout
 
 
+@pytest.mark.skipif(sys.platform == 'win32',
+                    reason="Unicode not working in windows terminal.")
 def test_unicode():
     created = []
     # Create a unicode containing kernel with unicode in every field possible
