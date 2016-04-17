@@ -188,7 +188,7 @@ class RemoteIKernel(object):
         # The connection info is provided by the notebook
         try:
             self.connection_info = json.load(open(connection_info))
-        except FileNotFoundError:
+        except OSError:
             # file not found, allowed during testing
             if interface != 'test':
                 raise
