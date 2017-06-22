@@ -24,7 +24,7 @@ from tornado.log import LogFormatter
 from remote_ikernel import RIK_PREFIX, __version__
 
 
-# ALl the ports that need to be forwarded
+# All the ports that need to be forwarded
 PORT_NAMES = ['hb_port', 'shell_port', 'iopub_port', 'stdin_port',
               'control_port']
 
@@ -374,11 +374,11 @@ class RemoteIKernel(object):
             launch_args = self.launch_args
         else:
             launch_args = ''
-        # -u disables buffering, -i is interactive, -v so we know the node
+        # -i is interactive, -v so we know the node, --pty needed for SIGINT
         # tasks must be before the bash!
-        srun_cmd = '{srun}  {tasks} -J {job_name} {args} -v -u bash -i'.format(
-            srun=self.get_cmd('srun'), tasks=tasks, job_name=job_name,
-            args=launch_args)
+        srun_cmd = ('{srun} {tasks} -J {job_name} {args} -v --pty bash -i'
+                    ''.format(srun=self.get_cmd('srun'), tasks=tasks,
+                              job_name=job_name, args=launch_args))
         self.log.info("SLURM command: '{0}'.".format(srun_cmd))
         srun = self._spawn(srun_cmd)
         # Hopefully this text is universal?
@@ -474,11 +474,12 @@ class RemoteIKernel(object):
         # to work seamlessly. (tunnels will have already done this)
         pre = self.tunnel_hosts_cmd or ''
         pexpect.spawn('{pre} ssh -o StrictHostKeyChecking=no '
-                      '{host}'.format(pre=pre, host=self.host).strip()).sendline('exit')
+                      '{host}'.format(pre=pre, host=self.host).strip(),
+                      logfile=self.log).sendline('exit')
 
         # connection info should have the ports being used
         tunnel_command = self.tunnel_cmd.format(**self.connection_info)
-        tunnel = pexpect.spawn(tunnel_command)
+        tunnel = pexpect.spawn(tunnel_command, logfile=self.log)
         check_password(tunnel)
 
         self.log.info("Setting up tunnels on ports: {0}.".format(
@@ -534,8 +535,8 @@ class RemoteIKernel(object):
                 # Moves on to the next loop.
                 pass
             except KeyboardInterrupt:
-                self.log.info("Caught interrupt; sending to kernel.")
-                self.connection.sendcontrol('c')
+                self.log.info("Caught interrupt; sending SIGINT to kernel.")
+                self.connection.sendintr()
 
     def _spawn(self, command, timeout=600):
         """
