@@ -8,7 +8,7 @@ except ImportError:
     scripts = ['bin/remote_ikernel']
 
 setup(name='remote_ikernel',
-      version='0.4.5',
+      version='0.4.6',
       description='Running IPython kernels through batch queues',
       long_description=open('README.rst').read(),
       author='Tom Daff',
