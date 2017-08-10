@@ -289,8 +289,14 @@ class RemoteIKernel(object):
             launch_args = self.launch_args
         else:
             launch_args = ''
+
+        if ':' in self.host:
+            host = self.host.replace(":", " -p ")
+        else:
+            host = self.host
+
         login_cmd = 'ssh -o StrictHostKeyChecking=no {args} {host}'.format(
-            args=launch_args, host=self.host)
+            args=launch_args, host=host)
         self.log.info("Login command: '{0}'.".format(login_cmd))
         self._spawn(login_cmd)
         check_password(self.connection)
@@ -430,10 +436,10 @@ class RemoteIKernel(object):
         # directory on the remote machine.
         if self.workdir:
             self.log.info("Remote working directory {0}.".format(self.workdir))
-            conn.sendline('cd {0}'.format(self.workdir))
+            conn.sendline('cd "{0}"'.format(self.workdir))
         else:
             self.log.info("Current working directory {0}.".format(self.cwd))
-            conn.sendline('cd {0}'.format(self.cwd))
+            conn.sendline('cd "{0}"'.format(self.cwd))
 
         # Create a temporary file to store a copy of the connection information
         # Delete the file if it already exists
@@ -473,8 +479,14 @@ class RemoteIKernel(object):
         # admin to turn StrictHostKeyChecking off in .ssh/ssh_config for this
         # to work seamlessly. (tunnels will have already done this)
         pre = self.tunnel_hosts_cmd or ''
+
+        if ':' in self.host:
+            host = self.host.replace(':', ' -p ')
+        else:
+            host = self.host
+
         pexpect.spawn('{pre} ssh -o StrictHostKeyChecking=no '
-                      '{host}'.format(pre=pre, host=self.host).strip(),
+                      '{host}'.format(pre=pre, host=host).strip(),
                       logfile=self.log).sendline('exit')
 
         # connection info should have the ports being used
@@ -572,13 +584,11 @@ class RemoteIKernel(object):
             return None
 
         cmd = []
+        ssh = 'ssh -o StrictHostKeyChecking=no'
 
         for host in self.tunnel_hosts:
             if ':' in host:
-                host, port = host.split(":")
-                ssh = 'ssh -o StrictHostKeyChecking=no -p {0}'.format(port)
-            else:
-                ssh = 'ssh -o StrictHostKeyChecking=no'
+                host = host.replace(':', ' -p ')
 
             cmd.extend([ssh, host])
 
@@ -595,24 +605,21 @@ class RemoteIKernel(object):
         ports_str = " ".join(["-L 127.0.0.1:{{{port}}}:127.0.0.1:{{{port}}}"
                               "".format(port=port) for port in PORT_NAMES])
 
+        ssh = 'ssh'
+
         # Add all the gateway machines as an ssh chain
         pre_ssh = []
         for pre_host in self.tunnel_hosts or []:
             if ':' in pre_host:
-                # Split the host:port and insert into tunnel command
-                pre_ssh.append(
-                    "ssh -p {0[1]} {ports_str} {0[0]}".format(
-                        pre_host.split(':'), ports_str=ports_str))
-            else:
-                pre_ssh.append(
-                    "ssh {ports_str} {0}".format(
-                        pre_host, ports_str=ports_str))
+                pre_host = pre_host.replace(':', ' -p ')
+
+            pre_ssh.append(
+                "{ssh} {ports_str} {pre_host}".format(
+                    ssh=ssh, pre_host=pre_host, ports_str=ports_str))
 
         if ':' in self.host:
-            host, host_port = self.host.split(":")
-            ssh = 'ssh -p {host_port}'.format(host_port=host_port)
+            host = self.host.replace(":", " -p ")
         else:
-            ssh = 'ssh '
             host = self.host
 
         # Timeout is specified here, this should be longer than the checking
