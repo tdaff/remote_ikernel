@@ -18,6 +18,15 @@ import time
 import uuid
 
 import pexpect
+try:
+    from pexpect import spawn as pexpect_spawn
+except ImportError:
+    from pexpect.popen_spawn import PopenSpawn
+    
+    class pexpect_spawn(PopenSpawn):
+        def isalive(self):
+            return self.proc.poll() is None
+
 
 from tornado.log import LogFormatter
 
@@ -122,7 +131,7 @@ def check_password(connection):
             # Assume that immediate output includes the
             # request for a password, or goes straight to
             # a prompt.
-            text = connection.read_nonblocking(99999)
+            text = connection.read_nonblocking(99999, timeout=-1)
         except pexpect.TIMEOUT:
             # Nothing more to read from the output
             return
@@ -485,13 +494,13 @@ class RemoteIKernel(object):
         else:
             host = self.host
 
-        pexpect.spawn('{pre} ssh -o StrictHostKeyChecking=no '
+        pexpect_spawn('{pre} ssh -o StrictHostKeyChecking=no '
                       '{host}'.format(pre=pre, host=host).strip(),
                       logfile=self.log).sendline('exit')
 
         # connection info should have the ports being used
         tunnel_command = self.tunnel_cmd.format(**self.connection_info)
-        tunnel = pexpect.spawn(tunnel_command, logfile=self.log)
+        tunnel = pexpect_spawn(tunnel_command, logfile=self.log)
         check_password(tunnel)
 
         self.log.info("Setting up tunnels on ports: {0}.".format(
@@ -570,7 +579,7 @@ class RemoteIKernel(object):
             The connection object. This is also attached to the class.
         """
         if self.connection is None:
-            self.connection = pexpect.spawn(command, timeout=timeout,
+            self.connection = pexpect_spawn(command, timeout=timeout,
                                             logfile=self.log)
         else:
             self.connection.sendline(command)
