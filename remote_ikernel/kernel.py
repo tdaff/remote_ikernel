@@ -331,7 +331,7 @@ class RemoteIKernel(object):
         # hostnames whould be alphanumeric with . and - permitted
         # This way we also ignore the echoed echo command
         qsub_i.expect('Running on ([\w.-]+)')
-        node = qsub_i.match.groups()[0]
+        node = qsub_i.match.groups()[0].decode('utf-8')
 
         self.log.info("Established session on node: {0}.".format(node))
         self.host = node
@@ -361,7 +361,7 @@ class RemoteIKernel(object):
         # Hopefully this text is universal?
         qlogin.expect('Establishing .* session to host (.*) ...')
 
-        node = qlogin.match.groups()[0]
+        node = qlogin.match.groups()[0].decode('utf-8')
         self.log.info("Established session on node: {0}.".format(node))
         self.host = node
 
@@ -390,7 +390,7 @@ class RemoteIKernel(object):
         # Hopefully this text is universal?
         srun.expect('srun: Node (.*), .* tasks started')
 
-        node = srun.match.groups()[0]
+        node = srun.match.groups()[0].decode('utf-8')
         self.log.info("Established session on node: {0}.".format(node))
         self.host = node
 
@@ -418,7 +418,7 @@ class RemoteIKernel(object):
         # Hopefully this text is universal?
         bsub.expect('<<Starting on (.*)>>')
 
-        node = bsub.match.groups()[0]
+        node = bsub.match.groups()[0].decode('utf-8')
         self.log.info("Established session on node: {0}.".format(node))
         self.host = node
 
