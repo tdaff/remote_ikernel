@@ -18,11 +18,12 @@ import time
 import uuid
 
 import pexpect
+
 try:
     from pexpect import spawn as pexpect_spawn
 except ImportError:
     from pexpect.popen_spawn import PopenSpawn
-    
+
     class pexpect_spawn(PopenSpawn):
         def isalive(self):
             return self.proc.poll() is None
@@ -34,12 +35,13 @@ from remote_ikernel import RIK_PREFIX, __version__
 
 
 # All the ports that need to be forwarded
-PORT_NAMES = ['hb_port', 'shell_port', 'iopub_port', 'stdin_port',
-              'control_port']
+PORT_NAMES = ["hb_port", "shell_port", "iopub_port", "stdin_port", "control_port"]
 
 # Blend in with the notebook logging
-_LOG_FMT = ("%(color)s[%(levelname)1.1s %(asctime)s.%(msecs).03d "
-            "%(name)s]%(end_color)s %(message)s")
+_LOG_FMT = (
+    "%(color)s[%(levelname)1.1s %(asctime)s.%(msecs).03d "
+    "%(name)s]%(end_color)s %(message)s"
+)
 _LOG_DATEFMT = "%H:%M:%S"
 
 
@@ -49,7 +51,7 @@ def _setup_logging(verbose):
     notebook messages. Will clear any existing handlers too.
     """
 
-    log = logging.getLogger('remote_ikernel')
+    log = logging.getLogger("remote_ikernel")
     if verbose:
         log.setLevel(logging.DEBUG)
     else:
@@ -70,8 +72,8 @@ def _setup_logging(verbose):
         """
         message = args[0]
         # convert bytes from pexpect to something that prints better
-        if hasattr(message, 'decode'):
-            message = message.decode('utf-8')
+        if hasattr(message, "decode"):
+            message = message.decode("utf-8")
 
         for line in message.splitlines():
             if line.strip():
@@ -103,9 +105,8 @@ def get_password(prompt):
 
     """
 
-    if 'SSH_ASKPASS' in os.environ:
-        password = subprocess.check_output([os.environ['SSH_ASKPASS'],
-                                            prompt])
+    if "SSH_ASKPASS" in os.environ:
+        password = subprocess.check_output([os.environ["SSH_ASKPASS"], prompt])
     else:
         raise RuntimeError("Unable to get password, try setting SSH_ASKPASS")
 
@@ -136,8 +137,8 @@ def check_password(connection):
             # Nothing more to read from the output
             return
 
-        re_passphrase = re.search(b'Enter passphrase .*:', text)
-        re_password = re.search(b'.*@.* password:', text)
+        re_passphrase = re.search(b"Enter passphrase .*:", text)
+        re_password = re.search(b".*@.* password:", text)
         if re_passphrase:
             passphrase = get_password(re_passphrase.group())
             connection.sendline(passphrase)
@@ -166,9 +167,10 @@ def extract_uuid(filename):
     """
 
     extracted = re.match(
-        '.*kernel-([0-9a-f]{8}-?[0-9a-f]{4}-?4[0-9a-f]{3}-'
-        '?[89ab][0-9a-f]{3}-?[0-9a-f]{12}).json',
-        filename)
+        ".*kernel-([0-9a-f]{8}-?[0-9a-f]{4}-?4[0-9a-f]{3}-"
+        "?[89ab][0-9a-f]{3}-?[0-9a-f]{12}).json",
+        filename,
+    )
     if extracted is not None:
         return uuid.UUID(extracted.group(1))
     else:
@@ -182,10 +184,22 @@ class RemoteIKernel(object):
 
     """
 
-    def __init__(self, connection_info=None, interface='sge', cpus=1, pe='smp',
-                 kernel_cmd='ipython kernel', workdir=None, tunnel=True,
-                 host=None, precmd=None, launch_args=None, verbose=False,
-                 tunnel_hosts=None, launch_cmd=None):
+    def __init__(
+        self,
+        connection_info=None,
+        interface="sge",
+        cpus=1,
+        pe="smp",
+        kernel_cmd="ipython kernel",
+        workdir=None,
+        tunnel=True,
+        host=None,
+        precmd=None,
+        launch_args=None,
+        verbose=False,
+        tunnel_hosts=None,
+        launch_cmd=None,
+    ):
         """
         Initialise a kernel on a remote machine and start tunnels.
 
@@ -199,7 +213,7 @@ class RemoteIKernel(object):
             self.connection_info = json.load(open(connection_info))
         except (OSError, IOError):
             # file not found, allowed during testing
-            if interface != 'test':
+            if interface != "test":
                 raise
         self.interface = interface
         self.cpus = cpus
@@ -224,21 +238,21 @@ class RemoteIKernel(object):
         if self.tunnel_hosts is not None:
             self.launch_tunnel_hosts()
 
-        if self.interface == 'local':
+        if self.interface == "local":
             self.launch_local()
-        elif self.interface == 'pbs':
+        elif self.interface == "pbs":
             self.launch_pbs()
-        elif self.interface == 'sge':
+        elif self.interface == "sge":
             self.launch_sge()
-        elif self.interface == 'sge_qrsh':
-            self.launch_sge(qlogin='qrsh')
-        elif self.interface == 'slurm':
+        elif self.interface == "sge_qrsh":
+            self.launch_sge(qlogin="qrsh")
+        elif self.interface == "slurm":
             self.launch_slurm()
-        elif self.interface == 'lsf':
+        elif self.interface == "lsf":
             self.launch_lsf()
-        elif self.interface == 'ssh':
+        elif self.interface == "ssh":
             self.launch_ssh()
-        elif self.interface == 'test':
+        elif self.interface == "test":
             # don't start anything if testing
             pass
         else:
@@ -256,8 +270,9 @@ class RemoteIKernel(object):
         default.
         """
         if self.launch_cmd is not None:
-            self.log.info("Overriding default '{0}' with '{1}'.".format(
-                    default, self.launch_cmd))
+            self.log.info(
+                "Overriding default '{0}' with '{1}'.".format(default, self.launch_cmd)
+            )
             return self.launch_cmd
         else:
             self.log.info("Default launch command: '{0}'.".format(default))
@@ -279,10 +294,11 @@ class RemoteIKernel(object):
         """
         self.log.info("Launching local kernel.")
         if self.launch_args:
-            bash = '{bash} {args}'.format(bash=self.get_cmd('/bin/bash'),
-                                          args=self.launch_args)
+            bash = "{bash} {args}".format(
+                bash=self.get_cmd("/bin/bash"), args=self.launch_args
+            )
         else:
-            bash = self.get_cmd('/bin/bash')
+            bash = self.get_cmd("/bin/bash")
         self._spawn(bash)
         # Don't try and start tunnels to the same machine. Causes issues.
         self.tunnel = False
@@ -297,15 +313,16 @@ class RemoteIKernel(object):
         if self.launch_args:
             launch_args = self.launch_args
         else:
-            launch_args = ''
+            launch_args = ""
 
-        if ':' in self.host:
+        if ":" in self.host:
             host = self.host.replace(":", " -p ")
         else:
             host = self.host
 
-        login_cmd = 'ssh -o StrictHostKeyChecking=no {args} {host}'.format(
-            args=launch_args, host=host)
+        login_cmd = "ssh -o StrictHostKeyChecking=no {args} {host}".format(
+            args=launch_args, host=host
+        )
         self.log.info("Login command: '{0}'.".format(login_cmd))
         self._spawn(login_cmd)
         check_password(self.connection)
@@ -316,59 +333,59 @@ class RemoteIKernel(object):
         will use the object's connection_info and kernel_command.
         """
         self.log.info("Launching kernel through PBS/Torque.")
-        job_name = 'remote_ikernel'
+        job_name = "remote_ikernel"
         if self.cpus > 1:
             cpu_string = "-l ncpus={cpus}".format(cpus=self.cpus)
         else:
-            cpu_string = ''
+            cpu_string = ""
         if self.launch_args:
             args_string = self.launch_args
         else:
-            args_string = ''
-        pbs_cmd = '{qsub} -I {cpus} -N {name} {args}'.format(
-                cpus=cpu_string, name=job_name, args=args_string,
-                qsub=self.get_cmd('qsub'))
+            args_string = ""
+        pbs_cmd = "{qsub} -I {cpus} -N {name} {args}".format(
+            cpus=cpu_string, name=job_name, args=args_string, qsub=self.get_cmd("qsub")
+        )
         self.log.info("PBS command: '{0}'.".format(pbs_cmd))
         # Will wait in the queue for up to 10 mins
         qsub_i = self._spawn(pbs_cmd)
         # Hopefully this text is universal? Job started...
-        qsub_i.expect('qsub: job (.*) ready')
+        qsub_i.expect("qsub: job (.*) ready")
         # Now we have to ask for the hostname (any way for it to
         # say automatically?)
-        qsub_i.sendline('echo Running on `hostname`')
+        qsub_i.sendline("echo Running on `hostname`")
 
         # hostnames whould be alphanumeric with . and - permitted
         # This way we also ignore the echoed echo command
-        qsub_i.expect('Running on ([\w.-]+)')
+        qsub_i.expect("Running on ([\w.-]+)")
         node = qsub_i.match.groups()[0]
 
         self.log.info("Established session on node: {0}.".format(node))
         self.host = node
 
-    def launch_sge(self, qlogin='qlogin'):
+    def launch_sge(self, qlogin="qlogin"):
         """
         Start a kernel through the gridengine 'qlogin' command. The connection
         will use the object's connection_info and kernel_command. 'qlogin' can
         also be replaced with 'qrsh' on some systems.
         """
         self.log.info("Launching kernel through GridEngine.")
-        job_name = 'remote_ikernel'
+        job_name = "remote_ikernel"
         if self.cpus > 1:
             pe_string = "-pe {pe} {cpus}".format(pe=self.pe, cpus=self.cpus)
         else:
-            pe_string = ''
+            pe_string = ""
         if self.launch_args:
             args_string = self.launch_args
         else:
-            args_string = ''
-        sge_cmd = '{qlogin} -verbose -now n {pe} -N {name} {args}'.format(
-                qlogin=self.get_cmd(qlogin), pe=pe_string, name=job_name,
-                args=args_string)
+            args_string = ""
+        sge_cmd = "{qlogin} -verbose -now n {pe} -N {name} {args}".format(
+            qlogin=self.get_cmd(qlogin), pe=pe_string, name=job_name, args=args_string
+        )
         self.log.info("Gridengine command: '{0}'.".format(sge_cmd))
         # Will wait in the queue for up to 10 mins
         qlogin = self._spawn(sge_cmd)
         # Hopefully this text is universal?
-        qlogin.expect('Establishing .* session to host (.*) ...')
+        qlogin.expect("Establishing .* session to host (.*) ...")
 
         node = qlogin.match.groups()[0]
         self.log.info("Established session on node: {0}.".format(node))
@@ -380,7 +397,7 @@ class RemoteIKernel(object):
         pexpect to the class to interact with it.
         """
         self.log.info("Launching kernel through SLURM.")
-        job_name = 'remote_ikernel'
+        job_name = "remote_ikernel"
         if self.cpus > 1:
             tasks = "--cpus-per-task {cpus}".format(cpus=self.cpus)
         else:
@@ -388,16 +405,16 @@ class RemoteIKernel(object):
         if self.launch_args:
             launch_args = self.launch_args
         else:
-            launch_args = ''
+            launch_args = ""
         # -i is interactive, -v so we know the node, --pty needed for SIGINT
         # tasks must be before the bash!
-        srun_cmd = ('{srun} {tasks} -J {job_name} {args} -v --pty bash -i'
-                    ''.format(srun=self.get_cmd('srun'), tasks=tasks,
-                              job_name=job_name, args=launch_args))
+        srun_cmd = "{srun} {tasks} -J {job_name} {args} -v --pty bash -i" "".format(
+            srun=self.get_cmd("srun"), tasks=tasks, job_name=job_name, args=launch_args
+        )
         self.log.info("SLURM command: '{0}'.".format(srun_cmd))
         srun = self._spawn(srun_cmd)
         # Hopefully this text is universal?
-        srun.expect('srun: Node (.*), .* tasks started')
+        srun.expect("srun: Node (.*), .* tasks started")
 
         node = srun.match.groups()[0]
         self.log.info("Established session on node: {0}.".format(node))
@@ -409,7 +426,7 @@ class RemoteIKernel(object):
         mode. Bind the spawned pexpect to the class to interact with it.
         """
         self.log.info("Launching kernel through Platform LSF.")
-        job_name = 'remote_ikernel'
+        job_name = "remote_ikernel"
         if self.cpus > 1:
             tasks = "-n {cpus}".format(cpus=self.cpus)
         else:
@@ -417,15 +434,15 @@ class RemoteIKernel(object):
         if self.launch_args:
             launch_args = self.launch_args
         else:
-            launch_args = ''
+            launch_args = ""
         # -Is is interactive shell mode
-        bsub_cmd = '{bsub} {tasks} -J {job_name} {args} -Is /bin/bash'.format(
-            bsub=self.get_cmd('bsub'), tasks=tasks, job_name=job_name,
-            args=launch_args)
+        bsub_cmd = "{bsub} {tasks} -J {job_name} {args} -Is /bin/bash".format(
+            bsub=self.get_cmd("bsub"), tasks=tasks, job_name=job_name, args=launch_args
+        )
         self.log.info("LSF command: '{0}'.".format(bsub_cmd))
         bsub = self._spawn(bsub_cmd)
         # Hopefully this text is universal?
-        bsub.expect('<<Starting on (.*)>>')
+        bsub.expect("<<Starting on (.*)>>")
 
         node = bsub.match.groups()[0]
         self.log.info("Established session on node: {0}.".format(node))
@@ -438,7 +455,7 @@ class RemoteIKernel(object):
         conn = self.connection
         # If the remote system has a different filesystem, a temporary
         # file is needed to hold the json.
-        kernel_name = './{0}kernel-{1}.json'.format(RIK_PREFIX, self.uuid)
+        kernel_name = "./{0}kernel-{1}.json".format(RIK_PREFIX, self.uuid)
         self.log.info("Established connection; starting kernel.")
 
         # Use the specified working directory or try to change to the same
@@ -452,10 +469,9 @@ class RemoteIKernel(object):
 
         # Create a temporary file to store a copy of the connection information
         # Delete the file if it already exists
-        conn.sendline('rm -f {0}'.format(kernel_name))
+        conn.sendline("rm -f {0}".format(kernel_name))
         file_contents = json.dumps(self.connection_info)
-        conn.sendline('echo \'{0}\' > {1}'.format(file_contents,
-                                                  kernel_name))
+        conn.sendline("echo '{0}' > {1}".format(file_contents, kernel_name))
 
         # Is this the best place for a pre-command? I guess people will just
         # have to deal with it. Pass it on as is.
@@ -463,9 +479,10 @@ class RemoteIKernel(object):
             conn.sendline(self.precmd)
 
         # Init as a background process so we can delete the tempfile after
-        kernel_init = '{kernel_cmd}'.format(kernel_cmd=self.kernel_cmd)
-        kernel_init = kernel_init.format(host_connection_file=kernel_name,
-                                         ci=self.connection_info)
+        kernel_init = "{kernel_cmd}".format(kernel_cmd=self.kernel_cmd)
+        kernel_init = kernel_init.format(
+            host_connection_file=kernel_name, ci=self.connection_info
+        )
         self.log.info("Running kernel command: '{0}'.".format(kernel_init))
         conn.sendline(kernel_init)
 
@@ -473,11 +490,11 @@ class RemoteIKernel(object):
         # transient file for once the process stops. Trying to do this
         # whilst simultaneously starting the kernel ended up deleting
         # the file before it was read.
-        conn.sendline('rm -f {0}'.format(kernel_name))
-        conn.sendline('exit')
+        conn.sendline("rm -f {0}".format(kernel_name))
+        conn.sendline("exit")
 
         # Could check this for errors?
-        conn.expect('exit')
+        conn.expect("exit")
 
     def tunnel_connection(self):
         """
@@ -487,36 +504,45 @@ class RemoteIKernel(object):
         # This might need to change, but the other option is to get user or
         # admin to turn StrictHostKeyChecking off in .ssh/ssh_config for this
         # to work seamlessly. (tunnels will have already done this)
-        pre = self.tunnel_hosts_cmd or ''
+        pre = self.tunnel_hosts_cmd or ""
 
-        if ':' in self.host:
-            host = self.host.replace(':', ' -p ')
+        if ":" in self.host:
+            host = self.host.replace(":", " -p ")
         else:
             host = self.host
 
-        pexpect_spawn('{pre} ssh -o StrictHostKeyChecking=no '
-                      '{host}'.format(pre=pre, host=host).strip(),
-                      logfile=self.log).sendline('exit')
+        pexpect_spawn(
+            "{pre} ssh -o StrictHostKeyChecking=no "
+            "{host}".format(pre=pre, host=host).strip(),
+            logfile=self.log,
+        ).sendline("exit")
 
         # connection info should have the ports being used
         tunnel_command = self.tunnel_cmd.format(**self.connection_info)
         tunnel = pexpect_spawn(tunnel_command, logfile=self.log)
         check_password(tunnel)
 
-        self.log.info("Setting up tunnels on ports: {0}.".format(
-            ", ".join(["{0}".format(self.connection_info[port_name])
-                       for port_name in PORT_NAMES])))
+        self.log.info(
+            "Setting up tunnels on ports: {0}.".format(
+                ", ".join(
+                    [
+                        "{0}".format(self.connection_info[port_name])
+                        for port_name in PORT_NAMES
+                    ]
+                )
+            )
+        )
         self.log.debug("Tunnel command: {0}.".format(tunnel_command))
 
         # Store the tunnel
-        self.tunnels['tunnel'] = tunnel
+        self.tunnels["tunnel"] = tunnel
 
     def check_tunnels(self):
         """
         Check the PID of tunnels and restart any that have died.
         """
-        if 'tunnel' in self.tunnels:
-            if not self.tunnels['tunnel'].isalive():
+        if "tunnel" in self.tunnels:
+            if not self.tunnels["tunnel"].isalive():
                 self.log.debug("Restarting ssh tunnels.")
                 self.tunnel_connection()
 
@@ -579,8 +605,7 @@ class RemoteIKernel(object):
             The connection object. This is also attached to the class.
         """
         if self.connection is None:
-            self.connection = pexpect_spawn(command, timeout=timeout,
-                                            logfile=self.log)
+            self.connection = pexpect_spawn(command, timeout=timeout, logfile=self.log)
         else:
             self.connection.sendline(command)
 
@@ -593,11 +618,11 @@ class RemoteIKernel(object):
             return None
 
         cmd = []
-        ssh = 'ssh -o StrictHostKeyChecking=no'
+        ssh = "ssh -o StrictHostKeyChecking=no"
 
         for host in self.tunnel_hosts:
-            if ':' in host:
-                host = host.replace(':', ' -p ')
+            if ":" in host:
+                host = host.replace(":", " -p ")
 
             cmd.extend([ssh, host])
 
@@ -607,26 +632,32 @@ class RemoteIKernel(object):
     def tunnel_cmd(self):
         """Return a tunnelling command that just needs a port."""
         # zmq needs str in Python 3, but pexpect gives bytes
-        if hasattr(self.host, 'decode'):
-            self.host = self.host.decode('utf-8')
+        if hasattr(self.host, "decode"):
+            self.host = self.host.decode("utf-8")
 
         # One connection can tunnel all the ports
-        ports_str = " ".join(["-L 127.0.0.1:{{{port}}}:127.0.0.1:{{{port}}}"
-                              "".format(port=port) for port in PORT_NAMES])
+        ports_str = " ".join(
+            [
+                "-L 127.0.0.1:{{{port}}}:127.0.0.1:{{{port}}}" "".format(port=port)
+                for port in PORT_NAMES
+            ]
+        )
 
-        ssh = 'ssh'
+        ssh = "ssh"
 
         # Add all the gateway machines as an ssh chain
         pre_ssh = []
         for pre_host in self.tunnel_hosts or []:
-            if ':' in pre_host:
-                pre_host = pre_host.replace(':', ' -p ')
+            if ":" in pre_host:
+                pre_host = pre_host.replace(":", " -p ")
 
             pre_ssh.append(
                 "{ssh} {ports_str} {pre_host}".format(
-                    ssh=ssh, pre_host=pre_host, ports_str=ports_str))
+                    ssh=ssh, pre_host=pre_host, ports_str=ports_str
+                )
+            )
 
-        if ':' in self.host:
+        if ":" in self.host:
             host = self.host.replace(":", " -p ")
         else:
             host = self.host
@@ -634,9 +665,13 @@ class RemoteIKernel(object):
         # Timeout is specified here, this should be longer than the checking
         # interval
         # .strip() to prevent leading spaces
-        tunnel_cmd = ((" ".join(pre_ssh) + " " +
-                       "{ssh} {ports_str} {host} sleep 600".format(
-                           ssh=ssh, host=host, ports_str=ports_str)).strip())
+        tunnel_cmd = (
+            " ".join(pre_ssh)
+            + " "
+            + "{ssh} {ports_str} {host} sleep 600".format(
+                ssh=ssh, host=host, ports_str=ports_str
+            )
+        ).strip()
 
         self.log.debug("Tunnel command: {0}".format(tunnel_cmd))
         return tunnel_cmd
@@ -650,30 +685,42 @@ def start_remote_kernel():
     # kernel the kernel.json
     description = "This is the kernel launcher! Try '%(prog)s manage'..."
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('connection_info')
-    parser.add_argument('--interface', default='local')
-    parser.add_argument('--cpus', type=int, default=1)
-    parser.add_argument('--pe', default='smp')
-    parser.add_argument('--kernel_cmd',
-                        default='ipython kernel -f {host_connection_file}')
-    parser.add_argument('--workdir')
-    parser.add_argument('--host')
-    parser.add_argument('--precmd')
-    parser.add_argument('--launch-args')
-    parser.add_argument('--verbose', action='store_true')
-    parser.add_argument('--tunnel-hosts', nargs='+')
-    parser.add_argument('--launch-cmd')
-    parser.add_argument('--version', '-V', action='version', version="Remote "
-                        "Jupyter kernel launcher (version {0}).\n\n"
-                        "Use the '%(prog)s manage' subcommand for managing "
-                        "kernels.".format(__version__))
+    parser.add_argument("connection_info")
+    parser.add_argument("--interface", default="local")
+    parser.add_argument("--cpus", type=int, default=1)
+    parser.add_argument("--pe", default="smp")
+    parser.add_argument(
+        "--kernel_cmd", default="ipython kernel -f {host_connection_file}"
+    )
+    parser.add_argument("--workdir")
+    parser.add_argument("--host")
+    parser.add_argument("--precmd")
+    parser.add_argument("--launch-args")
+    parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--tunnel-hosts", nargs="+")
+    parser.add_argument("--launch-cmd")
+    parser.add_argument(
+        "--version",
+        "-V",
+        action="version",
+        version="Remote Jupyter kernel launcher (version {0}).\n\n"
+        "Use the '%(prog)s manage' subcommand for managing "
+        "kernels.".format(__version__),
+    )
     args = parser.parse_args()
 
-    kernel = RemoteIKernel(connection_info=args.connection_info,
-                           interface=args.interface, cpus=args.cpus, pe=args.pe,
-                           kernel_cmd=args.kernel_cmd, workdir=args.workdir,
-                           host=args.host, precmd=args.precmd,
-                           launch_args=args.launch_args, verbose=args.verbose,
-                           tunnel_hosts=args.tunnel_hosts,
-                           launch_cmd=args.launch_cmd)
+    kernel = RemoteIKernel(
+        connection_info=args.connection_info,
+        interface=args.interface,
+        cpus=args.cpus,
+        pe=args.pe,
+        kernel_cmd=args.kernel_cmd,
+        workdir=args.workdir,
+        host=args.host,
+        precmd=args.precmd,
+        launch_args=args.launch_args,
+        verbose=args.verbose,
+        tunnel_hosts=args.tunnel_hosts,
+        launch_cmd=args.launch_cmd,
+    )
     kernel.keep_alive()

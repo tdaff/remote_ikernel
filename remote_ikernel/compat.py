@@ -22,10 +22,10 @@ except ImportError:
     from IPython.kernel import kernelspec
 
 # Otherwise it might be in genutils, but that will be dissolved
-if not hasattr(tempdir, 'TemporaryDirectory'):
+if not hasattr(tempdir, "TemporaryDirectory"):
     try:
         from ipython_genutils import tempdir
     except ImportError:
         from IPython.utils import tempdir
 
-__all__ = ('kernelspec', 'tempdir')
+__all__ = ("kernelspec", "tempdir")
