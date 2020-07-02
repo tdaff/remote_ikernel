@@ -1,0 +1,25 @@
+# Python cruft
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+pip-wheel-metadata
+build/
+dist/
+
+# IDE cruft
+.idea
+.vscode
+*.swp
+*.orig
+.venv/
+venv
+*.ps1
+
+# Testing
+.pytest_cache/
+.tox
+*.db
+# pytest -> junit
+*.xml
+.cache
