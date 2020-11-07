@@ -376,7 +376,7 @@ class RemoteIKernel(object):
 
         # hostnames whould be alphanumeric with . and - permitted
         # This way we also ignore the echoed echo command
-        qsub_i.expect("Running on ([\w.-]+)")
+        qsub_i.expect(r"Running on ([\w.-]+)")
         node = qsub_i.match.groups()[0] or b''
 
         self.log.info("Established session on node: {0}.".format(node))
