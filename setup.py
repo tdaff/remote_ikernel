@@ -17,7 +17,7 @@ setup(
     author="Tom Daff",
     author_email="tdd20@cam.ac.uk",
     license="BSD",
-    url="https://bitbucket.org/tdaff/remote_ikernel",
+    url="https://github.com/tdaff/remote_ikernel",
     packages=["remote_ikernel"],
     scripts=scripts,
     entry_points={"console_scripts": ["remote_ikernel = remote_ikernel.__main__:main"]},
