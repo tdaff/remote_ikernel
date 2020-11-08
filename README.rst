@@ -6,7 +6,7 @@ All your Jupyter kernels, on all your machines, in one place.
 Launch Jupyter kernels on remote systems and through batch queues so that
 they can be used within a local Jupyter noteboook.
 
-.. image :: https://bitbucket.org/tdaff/remote_ikernel/raw/default/doc/kernels.png
+.. image :: https://raw.githubusercontent.com/tdaff/remote_ikernel/master/doc/kernels.png
 
 Jupyter compatible Kernels start through interactive jobs in batch queue
 systems (SGE, SLURM, PBS...) or through SSH connections. Once the kernel is
