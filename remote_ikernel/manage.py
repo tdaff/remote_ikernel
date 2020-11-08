@@ -160,6 +160,7 @@ def add_kernel(
     tunnel_hosts=None,
     verbose=False,
     launch_cmd=None,
+    encoding=None,
 ):
     """
     Add a kernel. Generates a kernel.json and installs it for the system or
@@ -235,6 +236,9 @@ def add_kernel(
 
     if launch_args is not None:
         argv.extend(["--launch-args", launch_args])
+
+    if encoding is not None:
+        argv.extend(["--encoding", encoding])
 
     if tunnel_hosts:
         # This will be a list of hosts
@@ -406,6 +410,11 @@ def manage():
         "interface. For non standard ports use host:port.",
     )
     parser.add_argument(
+        "--encoding",
+        help="If the remote terminal uses an encoding that cannot "
+        "be decoded as utf-8, give an alternative encoding to use.",
+    )
+    parser.add_argument(
         "--verbose",
         "-v",
         action="store_true",
@@ -447,6 +456,7 @@ def manage():
             args.tunnel_hosts,
             args.verbose,
             args.launch_cmd,
+            args.encoding,
         )
         print("Added kernel ['{0}']: {1}.".format(kernel_name, display_name))
     elif args.delete:

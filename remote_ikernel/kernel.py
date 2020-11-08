@@ -137,8 +137,8 @@ def check_password(connection):
             # Nothing more to read from the output
             return
 
-        re_passphrase = re.search(b"Enter passphrase .*:", text)
-        re_password = re.search(b".*@.* password:", text)
+        re_passphrase = re.search("Enter passphrase .*:", text)
+        re_password = re.search(".*@.* password:", text)
         if re_passphrase:
             passphrase = get_password(re_passphrase.group())
             connection.sendline(passphrase)
@@ -199,6 +199,7 @@ class RemoteIKernel(object):
         verbose=False,
         tunnel_hosts=None,
         launch_cmd=None,
+        encoding="utf-8",
     ):
         """
         Initialise a kernel on a remote machine and start tunnels.
@@ -228,6 +229,7 @@ class RemoteIKernel(object):
         self.precmd = precmd
         self.launch_cmd = launch_cmd
         self.launch_args = launch_args
+        self.encoding = encoding
         self.cwd = os.getcwd()  # Launch directory may be needed if no workdir
         # Assign the parent uuid, or generate a new one
         self.uuid = extract_uuid(connection_info) or uuid.uuid4()
@@ -515,11 +517,12 @@ class RemoteIKernel(object):
             "{pre} ssh -o StrictHostKeyChecking=no "
             "{host}".format(pre=pre, host=host).strip(),
             logfile=self.log,
+            encoding=self.encoding,
         ).sendline("exit")
 
         # connection info should have the ports being used
         tunnel_command = self.tunnel_cmd.format(**self.connection_info)
-        tunnel = pexpect_spawn(tunnel_command, logfile=self.log)
+        tunnel = pexpect_spawn(tunnel_command, logfile=self.log, encoding=self.encoding)
         check_password(tunnel)
 
         self.log.info(
@@ -605,7 +608,9 @@ class RemoteIKernel(object):
             The connection object. This is also attached to the class.
         """
         if self.connection is None:
-            self.connection = pexpect_spawn(command, timeout=timeout, logfile=self.log)
+            self.connection = pexpect_spawn(
+                command, timeout=timeout, logfile=self.log, encoding=self.encoding
+            )
         else:
             self.connection.sendline(command)
 
@@ -631,10 +636,6 @@ class RemoteIKernel(object):
     @property
     def tunnel_cmd(self):
         """Return a tunnelling command that just needs a port."""
-        # zmq needs str in Python 3, but pexpect gives bytes
-        if hasattr(self.host, "decode"):
-            self.host = self.host.decode("utf-8")
-
         # One connection can tunnel all the ports
         ports_str = " ".join(
             [
@@ -699,6 +700,7 @@ def start_remote_kernel():
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--tunnel-hosts", nargs="+")
     parser.add_argument("--launch-cmd")
+    parser.add_argument("--encoding", default="utf-8")
     parser.add_argument(
         "--version",
         "-V",
@@ -722,5 +724,6 @@ def start_remote_kernel():
         verbose=args.verbose,
         tunnel_hosts=args.tunnel_hosts,
         launch_cmd=args.launch_cmd,
+        encoding=args.encoding,
     )
     kernel.keep_alive()
