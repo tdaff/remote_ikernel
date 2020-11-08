@@ -18,6 +18,7 @@ import time
 import uuid
 
 import pexpect
+import warnings
 
 try:
     from pexpect import spawn as pexpect_spawn
@@ -184,6 +185,20 @@ class RemoteIKernel(object):
 
     """
 
+    @property
+    def host(self):
+        return self._host
+
+    @host.setter
+    def host(self, new):
+        if isinstance(new, bytes):
+            warnings.warn('Automatically decoding self.host assignment to bytes. Did you forget a `.decode()`?')
+            self._host = new.decode()
+        elif isinstance(new, str):
+            self._host = new
+        else:
+            raise TypeError('self.host can only be assigned `str` or `bytes`, not `{}`'.format(type(new)))
+
     def __init__(
         self,
         connection_info=None,
@@ -219,7 +234,12 @@ class RemoteIKernel(object):
         self.cpus = cpus
         self.pe = pe
         self.kernel_cmd = kernel_cmd
-        self.host = host  # Name of node to be changed once connection is ready.
+        self.host = ''
+        if not host:
+            self.host = ''
+        else:
+            self.host = host  # Name of node to be changed once connection is ready.
+
         self.tunnel_hosts = tunnel_hosts
         self.connection = None  # will usually be a spawned pexpect
         self.workdir = workdir
@@ -357,10 +377,10 @@ class RemoteIKernel(object):
         # hostnames whould be alphanumeric with . and - permitted
         # This way we also ignore the echoed echo command
         qsub_i.expect(r"Running on ([\w.-]+)")
-        node = qsub_i.match.groups()[0]
+        node = qsub_i.match.groups()[0] or b''
 
         self.log.info("Established session on node: {0}.".format(node))
-        self.host = node
+        self.host = node.decode()
 
     def launch_sge(self, qlogin="qlogin"):
         """
@@ -387,9 +407,9 @@ class RemoteIKernel(object):
         # Hopefully this text is universal?
         qlogin.expect("Establishing .* session to host (.*) ...")
 
-        node = qlogin.match.groups()[0]
+        node = qlogin.match.groups()[0] or b''
         self.log.info("Established session on node: {0}.".format(node))
-        self.host = node
+        self.host = node.decode()
 
     def launch_slurm(self):
         """
@@ -416,9 +436,9 @@ class RemoteIKernel(object):
         # Hopefully this text is universal?
         srun.expect("srun: Node (.*), .* tasks started")
 
-        node = srun.match.groups()[0]
+        node = srun.match.groups()[0] or b''
         self.log.info("Established session on node: {0}.".format(node))
-        self.host = node
+        self.host = node.decode()
 
     def launch_lsf(self):
         """
@@ -444,9 +464,9 @@ class RemoteIKernel(object):
         # Hopefully this text is universal?
         bsub.expect("<<Starting on (.*)>>")
 
-        node = bsub.match.groups()[0]
+        node = bsub.match.groups()[0] or b''
         self.log.info("Established session on node: {0}.".format(node))
-        self.host = node
+        self.host = node.decode()
 
     def start_kernel(self):
         """
@@ -631,10 +651,6 @@ class RemoteIKernel(object):
     @property
     def tunnel_cmd(self):
         """Return a tunnelling command that just needs a port."""
-        # zmq needs str in Python 3, but pexpect gives bytes
-        if hasattr(self.host, "decode"):
-            self.host = self.host.decode("utf-8")
-
         # One connection can tunnel all the ports
         ports_str = " ".join(
             [
