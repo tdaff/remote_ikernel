@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import re
+import signal
 import subprocess
 import time
 import uuid
@@ -27,6 +28,10 @@ except ImportError:
     class pexpect_spawn(PopenSpawn):
         def isalive(self):
             return self.proc.poll() is None
+        
+        def sendintr(self):
+            """sendintr does not exist on PopenSpawn, use kill instead"""
+            self.kill(signal.SIGINT)
 
 
 from tornado.log import LogFormatter
@@ -520,6 +525,7 @@ class RemoteIKernel(object):
         # connection info should have the ports being used
         tunnel_command = self.tunnel_cmd.format(**self.connection_info)
         tunnel = pexpect_spawn(tunnel_command, logfile=self.log)
+        tunnel.linesep = "\n"
         check_password(tunnel)
 
         self.log.info(
@@ -606,6 +612,7 @@ class RemoteIKernel(object):
         """
         if self.connection is None:
             self.connection = pexpect_spawn(command, timeout=timeout, logfile=self.log)
+            self.connection.linesep = "\n"
         else:
             self.connection.sendline(command)
 
