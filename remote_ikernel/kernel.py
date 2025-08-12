@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import re
+import signal
 import subprocess
 import time
 import uuid
@@ -27,6 +28,10 @@ except ImportError:
     class pexpect_spawn(PopenSpawn):
         def isalive(self):
             return self.proc.poll() is None
+        
+        def sendintr(self):
+            """sendintr does not exist on PopenSpawn, use kill instead"""
+            self.kill(signal.SIGINT)
 
 
 from tornado.log import LogFormatter
